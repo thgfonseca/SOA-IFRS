@@ -27,7 +27,7 @@ const AdminEditais = {
             <div class="export-item" onclick="AdminEditais.exportar('csv')">📋 CSV (vírgula)</div>
           </div>
         </div>
-        <button onclick="AdminRouter.ir('cad-edital')" style="height:36px;padding:0 16px;border-radius:8px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-width:120px;justify-content:center;box-sizing:border-box">+ Novo edital</button>
+
       </div>
     </div>
 
@@ -144,7 +144,7 @@ const AdminEditais = {
         <td><div class="tm">${e.numero}</div><div class="ts">${e.tipo || ''}</div></td>
         <td>${e.tipo || ''}</td>
         <td><span class="b" style="background:${sc.bg};color:${sc.color};border:1px solid ${sc.border}">${e.segmento}</span></td>
-        <td>${e.vigIni || ''} – ${e.vigFim || ''}</td>
+        <td style="font-size:12px;white-space:nowrap">${AdminEditais._fmtData(e.vigIni)} – ${AdminEditais._fmtData(e.vigFim)}</td>
         <td><span class="b" style="${ss};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${e.status}</span></td>
         <td><div class="acts">
           <button class="ab" onclick="AdminEditais.toggleNotif('${e.id}')" title="Notificações" style="font-size:14px;padding:0 8px">🔔</button>
@@ -166,7 +166,7 @@ const AdminEditais = {
             <div class="alarm-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
               <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Tipo</div><div style="font-size:13px">${e.tipo || '—'}</div></div>
               <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Segmento</div><span class="b" style="background:${sc.bg};color:${sc.color}">${e.segmento}</span></div>
-              <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Vigência</div><div style="font-size:13px">${e.vigIni || ''} – ${e.vigFim || ''}</div></div>
+              <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Vigência</div><div style="font-size:13px">${AdminEditais._fmtData(e.vigIni)} – ${AdminEditais._fmtData(e.vigFim)}</div></div>
               <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Status</div><span style="${ss};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${e.status}</span></div>
               <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Bolsa</div><div style="font-size:13px">R$ ${e.bolsaValor || '—'} / ${e.bolsaCH || '—'}h/sem</div></div>
               <div><div style="font-size:10px;font-weight:600;color:var(--g5);text-transform:uppercase;margin-bottom:4px">Vagas</div><div style="font-size:13px">${e.vagas || '—'}</div></div>
@@ -421,6 +421,19 @@ const AdminEditais = {
         } catch(e) { toast('❌ ' + e.message); }
       }
     );
+  },
+
+  // ── Formata data para dd/MM/yyyy ────────────────
+  _fmtData(val) {
+    if (!val) return '—';
+    // Já está no formato correto dd/MM/yyyy
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
+    // Tenta parsear como Date string
+    const d = new Date(val);
+    if (!isNaN(d)) {
+      return d.toLocaleDateString('pt-BR');
+    }
+    return val;
   },
 
   // ── Exportar ─────────────────────────────────
