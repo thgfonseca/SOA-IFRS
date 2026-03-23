@@ -315,50 +315,6 @@ const AdminEditais = {
   },
 
   // ── CRUD ─────────────────────────────────────
-  form(app, dados = {}) {
-    const segs  = ['Pesquisa','Ensino','Extensão','Indissociável'];
-    const tipos = ['Bolsas','Auxílio','Fluxo Contínuo','Fomento Externo'];
-    const stats = ['Rascunho','Publicado','Pendente','Encerrado'];
-
-    app.innerHTML = `
-    <div class="ph">
-      <div><h1>${dados.id ? 'Editar' : 'Cadastrar'} edital</h1><p>Preencha os dados do edital</p></div>
-      <div class="phr"><button class="btn bo" onclick="AdminRouter.ir('editais')">← Cancelar</button></div>
-    </div>
-    <div class="card">
-      <div class="ch"><h3>Dados gerais</h3></div>
-      <div class="fg">
-        <div class="fl"><label>Número</label>
-          <input class="inp" id="f-numero" value="${dados.numero||''}" placeholder="001/2025"></div>
-        <div class="fl"><label>Título</label>
-          <input class="inp" id="f-titulo" value="${dados.titulo||''}" placeholder="Título do edital"></div>
-        <div class="fl"><label>Segmento</label>
-          <select class="inp" id="f-segmento">${selectOpts(segs, dados.segmento)}</select></div>
-        <div class="fl"><label>Tipo</label>
-          <select class="inp" id="f-tipo">${selectOpts(tipos, dados.tipo)}</select></div>
-        <div class="fl"><label>Status</label>
-          <select class="inp" id="f-status">${selectOpts(stats, dados.status||'Rascunho')}</select></div>
-        <div class="fl"><label>Valor da bolsa (R$)</label>
-          <input class="inp" id="f-bolsaValor" type="number" value="${dados.bolsaValor||700}"></div>
-        <div class="fl"><label>CH semanal (h)</label>
-          <input class="inp" id="f-bolsaCH" type="number" value="${dados.bolsaCH||20}"></div>
-        <div class="fl"><label>Vagas</label>
-          <input class="inp" id="f-vagas" type="number" value="${dados.vagas||''}"></div>
-        <div class="fl"><label>Vigência início</label>
-          <input class="inp" id="f-vigIni" value="${dados.vigIni||''}" placeholder="01/03/2025"></div>
-        <div class="fl"><label>Vigência fim</label>
-          <input class="inp" id="f-vigFim" value="${dados.vigFim||''}" placeholder="28/02/2026"></div>
-        <div class="fl s2"><label>Descrição</label>
-          <textarea class="inp" id="f-descricao" placeholder="Descrição do edital...">${dados.descricao||''}</textarea></div>
-      </div>
-      <div class="fa">
-        <button class="btn bo" onclick="AdminRouter.ir('editais')">Cancelar</button>
-        <button class="btn bo" onclick="AdminEditais.salvar('${dados.id||''}','Rascunho')">Salvar rascunho</button>
-        <button class="btn bp" onclick="AdminEditais.salvar('${dados.id||''}')">💾 Publicar edital</button>
-      </div>
-    </div>`;
-  },
-
   async salvar(id, forcarStatus) {
     const dados = {
       id:         id || null,
@@ -391,7 +347,7 @@ const AdminEditais = {
 
   editar(id) {
     const e = SOA.editais.find(x => x.id === id);
-    if (e) this.form(document.getElementById('app'), e);
+    if (e) AdminCadEdital.render(document.getElementById('app'), e);
   },
 
   async duplicar(id) {
@@ -488,5 +444,413 @@ const AdminEditais = {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([conteudo], {type: mime}));
     a.download = nome; a.click();
+  }
+};
+// pages/admin/cad_edital.js — Formulário completo de cadastro de edital
+
+const AdminCadEdital = {
+
+  _cronoEtapas: [],
+  _recursoRows: 0,
+  _bolsaRows: 0,
+  _pdfCnt: 0,
+
+  RESPS: [
+    'Direção Geral',
+    'Direção de Ensino, Pesquisa e Extensão (DEPE)',
+    'DEX — Departamento de Extensão',
+    'DEN — Departamento de Ensino',
+    'DPPI — Departamento de Pesquisa e Pós-Graduação',
+    'Secretaria Acadêmica',
+    'Setor de RH / Pessoal',
+    'Coordenador(a) do Projeto',
+    'Candidatos às bolsas',
+    'Bolsistas',
+    'Voluntários',
+    'Outro'
+  ],
+
+  CRONO_DEFAULT: [
+    {etapa:'Publicação do edital',                         dataIni:'', dataFim:'', resp:'Direção de Ensino, Pesquisa e Extensão (DEPE)'},
+    {etapa:'Período de inscrição dos estudantes',          dataIni:'', dataFim:'', resp:'Candidatos às bolsas'},
+    {etapa:'Envio de documentos aos coordenadores',        dataIni:'', dataFim:'', resp:'Candidatos às bolsas'},
+    {etapa:'Retorno do coordenador (horários)',            dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'},
+    {etapa:'Publicação da lista de candidatos',            dataIni:'', dataFim:'', resp:'Direção de Ensino, Pesquisa e Extensão (DEPE)'},
+    {etapa:'Período para seleção dos bolsistas',           dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'},
+    {etapa:'Envio da Ata de seleção',                     dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'},
+    {etapa:'Divulgação do resultado preliminar',           dataIni:'', dataFim:'', resp:'Direção de Ensino, Pesquisa e Extensão (DEPE)'},
+    {etapa:'Período para interposição de recursos',        dataIni:'', dataFim:'', resp:'Candidatos às bolsas'},
+    {etapa:'Análise dos recursos',                         dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'},
+    {etapa:'Divulgação do resultado final',                dataIni:'', dataFim:'', resp:'Direção de Ensino, Pesquisa e Extensão (DEPE)'},
+    {etapa:'Envio dos formulários do bolsista',            dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'},
+    {etapa:'Início das atividades (Ensino/Pesquisa)',      dataIni:'', dataFim:'', resp:'Bolsistas'},
+    {etapa:'Início das atividades (Extensão)',             dataIni:'', dataFim:'', resp:'Bolsistas'},
+    {etapa:'Término (Extensão)',                           dataIni:'', dataFim:'', resp:'Bolsistas'},
+    {etapa:'Término (Ensino / Pesquisa / Indissociáveis)', dataIni:'', dataFim:'', resp:'Bolsistas'},
+  ],
+
+  render(app, dados = {}) {
+    this._cronoEtapas = JSON.parse(JSON.stringify(this.CRONO_DEFAULT));
+    this._recursoRows = 0;
+    this._bolsaRows   = 0;
+    this._pdfCnt      = 1;
+
+    const segs  = ['Pesquisa','Ensino','Extensão','Indissociável'];
+    const tipos = ['Bolsas','Auxílio','Fluxo Contínuo','Curricularização da Extensão','Fomento Externo'];
+    const stats = ['Rascunho','Publicado','Pendente','Encerrado'];
+    const ambs  = ['Interno — IFRS Campus Rio Grande','Externo — outra instituição ou órgão'];
+
+    app.innerHTML = `
+    <div class="ph">
+      <div><h1>${dados.id ? 'Editar' : 'Cadastrar'} edital</h1><p>Preencha os dados do novo edital</p></div>
+      <div class="phr"><button class="btn bo" onclick="AdminRouter.ir('editais')">← Cancelar</button></div>
+    </div>
+
+    <!-- 1. Dados gerais -->
+    <div class="card">
+      <div class="ch"><h3>Dados gerais</h3></div>
+      <div class="fg">
+        <div class="fl"><label>Número</label>
+          <input class="inp" id="f-numero" value="${dados.numero||''}" placeholder="001"></div>
+        <div class="fl"><label>Ano</label>
+          <input class="inp" id="f-ano" value="${dados.ano||new Date().getFullYear()}" placeholder="2025"></div>
+        <div class="fl"><label>Tipo de edital</label>
+          <select class="inp" id="f-tipo">${selectOpts(tipos, dados.tipo)}</select></div>
+        <div class="fl"><label>Âmbito</label>
+          <select class="inp" id="f-ambito">${selectOpts(ambs, dados.ambito)}</select></div>
+        <div class="fl"><label>Segmento</label>
+          <select class="inp" id="f-segmento" onchange="AdminCadEdital.onSegChange(this)">${selectOpts([''].concat(segs), dados.segmento)}</select></div>
+        <div class="fl"><label>Status</label>
+          <select class="inp" id="f-status">${selectOpts(stats, dados.status||'Rascunho')}</select></div>
+        <div class="fl s2"><label>Título completo</label>
+          <input class="inp" id="f-titulo" value="${dados.titulo||''}" placeholder="Edital 001/2025 — Bolsas de Pesquisa AIPCTI"></div>
+        <div class="fl s2"><label>Descrição / Ementa</label>
+          <textarea class="inp" id="f-descricao" placeholder="Descrição resumida do edital...">${dados.descricao||''}</textarea></div>
+      </div>
+    </div>
+
+    <!-- 2. Recursos financeiros -->
+    <div class="card">
+      <div class="ch" style="justify-content:space-between">
+        <div><h3>Recursos e auxílios financeiros</h3>
+          <p style="font-size:12px;color:var(--g4);margin-top:2px">Um recurso por segmento — custeio e capital</p></div>
+        <button class="btn bo" style="font-size:12px" onclick="AdminCadEdital.addRecurso()">+ Adicionar recurso</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:860px;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--g1)">
+              <th rowspan="2" style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--g3);text-align:left;min-width:160px">Tipo / Programa</th>
+              <th rowspan="2" style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--g3);text-align:left;min-width:120px">Segmento</th>
+              <th colspan="3" style="font-size:11px;font-weight:600;color:#166534;text-transform:uppercase;padding:6px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0fdf4">Campus (R$)</th>
+              <th colspan="3" style="font-size:11px;font-weight:600;color:#0e4d6b;text-transform:uppercase;padding:6px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0f9ff">Outro órgão (R$)</th>
+              <th rowspan="2" style="padding:8px 6px;border-bottom:1px solid var(--g3);width:32px"></th>
+            </tr>
+            <tr style="background:var(--g1)">
+              <th style="font-size:10px;font-weight:600;color:#166534;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0fdf4;min-width:90px">Custeio</th>
+              <th style="font-size:10px;font-weight:600;color:#166534;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0fdf4;min-width:90px">Capital</th>
+              <th style="font-size:10px;font-weight:600;color:#166534;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#dcfce7;min-width:90px">Total</th>
+              <th style="font-size:10px;font-weight:600;color:#0e4d6b;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0f9ff;min-width:90px">Custeio</th>
+              <th style="font-size:10px;font-weight:600;color:#0e4d6b;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#f0f9ff;min-width:90px">Capital</th>
+              <th style="font-size:10px;font-weight:600;color:#0e4d6b;text-transform:uppercase;padding:5px 12px;border-bottom:1px solid var(--g3);text-align:center;background:#e0f2fe;min-width:90px">Total</th>
+            </tr>
+          </thead>
+          <tbody id="recurso-rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3. Configuração de bolsas -->
+    <div class="card">
+      <div class="ch" style="justify-content:space-between">
+        <div><h3>Configuração de bolsas</h3>
+          <p style="font-size:12px;color:var(--g4);margin-top:2px">Adicione uma linha por carga horária diferente</p></div>
+        <button class="btn bo" style="font-size:12px" onclick="AdminCadEdital.addBolsa()">+ Adicionar bolsa</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 110px 110px 110px 32px;gap:8px;padding:8px 20px;border-bottom:1px solid var(--g3);background:var(--g1)">
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.05em">Tipo de bolsa</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.05em">Segmento</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.05em;text-align:center">CH/sem (h)</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.05em;text-align:center">Valor campus</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.05em;text-align:center">Valor outro órgão</div>
+        <div></div>
+      </div>
+      <div id="bolsa-rows" style="padding:8px 20px;display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <!-- 4. Documentos -->
+    <div class="card">
+      <div class="ch" style="justify-content:space-between">
+        <h3>Documentos do edital</h3>
+        <span style="font-size:11px;color:var(--g4)">Edital, anexos, retificações</span>
+      </div>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:12px" id="pdf-list"></div>
+      <div style="padding:0 24px 20px">
+        <button class="btn bo" style="font-size:12px" onclick="AdminCadEdital.addPdf()">+ Adicionar documento</button>
+      </div>
+    </div>
+
+    <!-- 5. Vigências por segmento -->
+    <div class="card">
+      <div class="ch"><h3>Vigências das bolsas</h3>
+        <span style="font-size:11px;color:var(--g4)">Datas de início e término por segmento</span>
+      </div>
+      <div class="fg">
+        <div class="fl"><label>Ensino — início</label><input class="inp" id="vig-ensi-ini" type="date"></div>
+        <div class="fl"><label>Ensino — término</label><input class="inp" id="vig-ensi-fim" type="date"></div>
+        <div class="fl"><label>Pesquisa — início</label><input class="inp" id="vig-pesq-ini" type="date"></div>
+        <div class="fl"><label>Pesquisa — término</label><input class="inp" id="vig-pesq-fim" type="date"></div>
+        <div class="fl"><label>Extensão — início</label><input class="inp" id="vig-exte-ini" type="date"></div>
+        <div class="fl"><label>Extensão — término</label><input class="inp" id="vig-exte-fim" type="date"></div>
+        <div class="fl"><label>Indissociável — início</label><input class="inp" id="vig-indi-ini" type="date"></div>
+        <div class="fl"><label>Indissociável — término</label><input class="inp" id="vig-indi-fim" type="date"></div>
+      </div>
+    </div>
+
+    <!-- 6. Contatos por segmento -->
+    <div class="card" id="contatos-card" style="display:none">
+      <div class="ch"><h3>Contatos por segmento</h3>
+        <span style="font-size:11px;color:var(--g4)">E-mails para comunicações</span>
+      </div>
+      <div class="fg" id="contatos-body"></div>
+    </div>
+
+    <!-- 7. Cronograma -->
+    <div class="card">
+      <div class="ch" style="justify-content:space-between">
+        <div><h3>Cronograma</h3>
+          <p style="font-size:12px;color:var(--g4);margin-top:2px">Datas e responsáveis de cada fase do processo seletivo</p></div>
+        <button class="btn bo" style="font-size:12px" onclick="AdminCadEdital.addCrono()">+ Adicionar etapa</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 190px 30px 30px;gap:6px;padding:8px 20px;border-bottom:1px solid var(--g3);background:var(--g1)">
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Etapa</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Início</div>
+        <div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Fim</div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Responsável</div>
+        <div></div><div></div>
+      </div>
+      <div id="crono-rows" style="padding:12px 20px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="fa">
+      <button class="btn bo" onclick="AdminRouter.ir('editais')">Cancelar</button>
+      <button class="btn bo" onclick="AdminCadEdital.salvar('Rascunho')">Salvar rascunho</button>
+      <button class="btn bp" onclick="AdminCadEdital.salvar()">💾 Publicar edital</button>
+    </div>`;
+
+    // Init dinâmicos
+    this.addRecurso();
+    this.addBolsa();
+    this._initPdf();
+    this.renderCrono();
+  },
+
+  // ── Segmento change ───────────────────────────
+  onSegChange(sel) {
+    const seg = sel.value;
+    const card = document.getElementById('contatos-card');
+    const body = document.getElementById('contatos-body');
+    if (!card || !body) return;
+
+    if (!seg) { card.style.display = 'none'; return; }
+
+    const segs = seg === 'Indissociável'
+      ? ['Ensino','Pesquisa','Extensão']
+      : [seg];
+
+    body.innerHTML = segs.map(s => `
+      <div class="fl"><label>${s} — e-mail de contato</label>
+        <input class="inp" id="contato-${s}" placeholder="email@riogrande.ifrs.edu.br"></div>
+    `).join('');
+    card.style.display = '';
+  },
+
+  // ── Recursos financeiros ──────────────────────
+  addRecurso() {
+    const idx = this._recursoRows++;
+    const tipos = ['PIBEX','BICT','BIDTI','CNPq','PAIEX','PAIEN','AIPCTI','Outro'];
+    const segs  = ['Pesquisa','Ensino','Extensão','Indissociável'];
+    const tbody = document.getElementById('recurso-rows');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.id = `rec-row-${idx}`;
+    tr.innerHTML = `
+      <td style="padding:8px 12px">
+        <select style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none">
+          ${tipos.map(t => `<option>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:8px 12px">
+        <select style="width:100%;height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none">
+          ${segs.map(s => `<option>${s}</option>`).join('')}
+        </select>
+      </td>
+      ${['rec-cc','rec-cap','rec-tot','rec-oc','rec-ocap','rec-otot'].map((id,i) => `
+        <td style="padding:8px 6px;background:${i<3?'#f0fdf4':'#f0f9ff'}">
+          <input id="${id}-${idx}" type="number" placeholder="0"
+            style="width:100%;height:32px;padding:0 8px;border:1.5px solid var(--g3);border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);background:var(--wh);outline:none;text-align:center"
+            ${i===2||i===5?'readonly style="width:100%;height:32px;padding:0 8px;border:1.5px solid var(--g3);border-radius:6px;font-family:Inter,sans-serif;font-size:12px;color:var(--green);background:#f0fdf4;outline:none;text-align:center;font-weight:700"':''}>
+        </td>`).join('')}
+      <td style="padding:8px 6px">
+        <button onclick="AdminCadEdital.delRecurso(${idx})"
+          style="width:30px;height:30px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  },
+
+  delRecurso(idx) {
+    const el = document.getElementById(`rec-row-${idx}`);
+    if (el) el.remove();
+  },
+
+  // ── Bolsas ────────────────────────────────────
+  addBolsa() {
+    const idx = this._bolsaRows++;
+    const tipos = ['PIBEX — Pesquisa e Extensão','BICT — Iniciação Científica','BIDTI — Iniciação Tecnológica','CNPq Ensino Médio','Outro'];
+    const segs  = ['Pesquisa','Ensino','Extensão','Indissociável'];
+    const container = document.getElementById('bolsa-rows');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.id = `bolsa-row-${idx}`;
+    div.style.cssText = 'background:var(--g1);border:1px solid var(--g3);border-radius:8px;padding:10px 12px';
+    div.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 110px 110px 110px 32px;gap:8px;align-items:center">
+        <select style="height:36px;padding:0 10px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;width:100%">
+          ${tipos.map(t => `<option>${t}</option>`).join('')}
+        </select>
+        <select style="height:36px;padding:0 10px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;width:100%">
+          ${segs.map(s => `<option>${s}</option>`).join('')}
+        </select>
+        <input type="number" placeholder="20" value="20"
+          style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;text-align:center;width:100%">
+        <input type="number" placeholder="700" value="700"
+          style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;text-align:center;width:100%">
+        <input type="number" placeholder="0"
+          style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;text-align:center;width:100%">
+        <button onclick="AdminCadEdital.delBolsa(${idx})"
+          style="width:30px;height:30px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px">✕</button>
+      </div>`;
+    container.appendChild(div);
+  },
+
+  delBolsa(idx) {
+    const el = document.getElementById(`bolsa-row-${idx}`);
+    if (el) el.remove();
+  },
+
+  // ── Documentos PDF ────────────────────────────
+  _initPdf() {
+    this._pdfCnt = 0;
+    document.getElementById('pdf-list').innerHTML = '';
+    this.addPdf();
+  },
+
+  addPdf() {
+    const idx = this._pdfCnt++;
+    const tipos = ['Edital principal','Anexo','Retificação','Comunicado','Resultado'];
+    const list = document.getElementById('pdf-list');
+    if (!list) return;
+    const div = document.createElement('div');
+    div.id = `pdf-${idx}`;
+    div.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div class="fl" style="flex:1"><label>Tipo</label>
+          <select class="inp">${tipos.map(t => `<option>${t}</option>`).join('')}</select></div>
+        <div class="fl" style="flex:2"><label>Descrição (opcional)</label>
+          <input class="inp" type="text" placeholder="Ex: Retificação 01"></div>
+        <div class="fl" style="flex:2"><label>Arquivo PDF</label>
+          <input type="file" accept=".pdf" style="height:auto;padding:8px 12px;border:1.5px solid var(--g3);border-radius:8px;width:100%;font-family:'Inter',sans-serif;font-size:13px"></div>
+        <div class="fl" style="flex:0 0 auto">
+          <button onclick="AdminCadEdital.remPdf(${idx})" ${idx===0?'disabled':''} 
+            style="height:40px;width:36px;border-radius:8px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px${idx===0?';opacity:.4;cursor:not-allowed':''}">✕</button>
+        </div>
+      </div>`;
+    list.appendChild(div);
+  },
+
+  remPdf(idx) {
+    const el = document.getElementById(`pdf-${idx}`);
+    if (el) el.remove();
+  },
+
+  // ── Cronograma ────────────────────────────────
+  renderCrono() {
+    const container = document.getElementById('crono-rows');
+    if (!container) return;
+    container.innerHTML = '';
+    this._cronoEtapas.forEach((e, idx) => {
+      const opts = this.RESPS.map(r => `<option${r===e.resp?' selected':''}>${r}</option>`).join('');
+      const div = document.createElement('div');
+      div.id = `crono-${idx}`;
+      div.style.cssText = 'background:var(--wh);border:1px solid var(--g3);border-radius:8px;padding:8px 10px';
+      div.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 190px 30px 30px;gap:6px;align-items:center">
+          <input type="text" value="${e.etapa}" placeholder="Nome da etapa"
+            style="height:36px;padding:0 12px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;width:100%"
+            oninput="AdminCadEdital._cronoEtapas[${idx}].etapa=this.value">
+          <input type="date" value="${e.dataIni}"
+            style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);background:var(--wh);outline:none;width:100%"
+            onchange="AdminCadEdital._cronoEtapas[${idx}].dataIni=this.value">
+          <span style="font-size:11px;color:var(--g4);text-align:center">a</span>
+          <input type="date" value="${e.dataFim}"
+            style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);background:var(--wh);outline:none;width:100%"
+            onchange="AdminCadEdital._cronoEtapas[${idx}].dataFim=this.value">
+          <select style="height:36px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);background:var(--wh);outline:none;width:100%"
+            onchange="AdminCadEdital._cronoEtapas[${idx}].resp=this.value">${opts}</select>
+          <button title="Alarme" style="width:30px;height:30px;border-radius:6px;border:1.5px solid var(--g3);background:transparent;color:var(--g4);cursor:pointer;font-size:14px"
+            onclick="toast('🔔 Alarmes em breve!')">🔔</button>
+          <button onclick="AdminCadEdital.delCrono(${idx})"
+            style="width:30px;height:30px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px">✕</button>
+        </div>`;
+      container.appendChild(div);
+    });
+  },
+
+  addCrono() {
+    this._cronoEtapas.push({etapa:'', dataIni:'', dataFim:'', resp:'Coordenador(a) do Projeto'});
+    this.renderCrono();
+    // Foca no último input
+    const rows = document.querySelectorAll('#crono-rows > div');
+    if (rows.length) {
+      const inp = rows[rows.length-1].querySelector('input[type=text]');
+      if (inp) inp.focus();
+    }
+  },
+
+  delCrono(idx) {
+    if (this._cronoEtapas.length <= 1) return;
+    this._cronoEtapas.splice(idx, 1);
+    this.renderCrono();
+  },
+
+  // ── Salvar ────────────────────────────────────
+  async salvar(forcarStatus) {
+    const numero  = val('f-numero');
+    const titulo  = val('f-titulo');
+    if (!numero || !titulo) { toast('⚠ Preencha número e título.'); return; }
+
+    const dados = {
+      numero,
+      titulo,
+      segmento:  val('f-segmento'),
+      tipo:      val('f-tipo'),
+      status:    forcarStatus || val('f-status'),
+      descricao: val('f-descricao'),
+      vigIni:    val('vig-pesq-ini') || val('vig-ensi-ini') || val('vig-exte-ini'),
+      vigFim:    val('vig-pesq-fim') || val('vig-ensi-fim') || val('vig-exte-fim'),
+      bolsaValor: '',
+      bolsaCH:    '',
+      vagas:      ''
+    };
+
+    toast('⏳ Salvando...');
+    try {
+      const res = await API.salvarEdital(dados);
+      SOA.editais.unshift({ ...dados, id: res.id });
+      toast('✓ Edital salvo!');
+      AdminRouter.ir('editais');
+    } catch(e) { toast('❌ ' + e.message); }
   }
 };
