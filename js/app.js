@@ -1,4 +1,4 @@
-// js/app.js — Login via Google OAuth redirect
+// js/app.js
 
 const SOA = {
   perfil: null,
@@ -6,60 +6,68 @@ const SOA = {
 };
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Pega token do hash (retorno do OAuth)
-  const hash   = new URLSearchParams(window.location.hash.substring(1));
-  const token  = hash.get('access_token');
+  // 1. Verifica se voltou do OAuth (token no hash da URL)
+  const hash  = window.location.hash;
+  const match = hash.match(/access_token=([^&]+)/);
 
-  if (token) {
-    // Salva e limpa a URL
+  if (match) {
+    const token = match[1];
     sessionStorage.setItem('soa_token', token);
-    history.replaceState(null, '', window.location.pathname);
-    setLoadMsg('Identificando usuário...');
-    buscarEmail(token);
-  } else {
-    // Verifica se já tinha token salvo
-    const saved = sessionStorage.getItem('soa_token');
-    if (saved) {
-      setLoadMsg('Identificando usuário...');
-      buscarEmail(saved);
-    } else {
-      mostrarLogin();
-    }
+    // Limpa o hash sem recarregar
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    iniciarComToken(token);
+    return;
   }
+
+  // 2. Verifica token salvo
+  const saved = sessionStorage.getItem('soa_token');
+  if (saved) {
+    iniciarComToken(saved);
+    return;
+  }
+
+  // 3. Sem token — mostra login
+  mostrarLogin();
 });
 
-async function buscarEmail(token) {
+async function iniciarComToken(token) {
+  setLoadMsg('Identificando usuário...');
   try {
-    // Usa a API do Google para pegar os dados do usuário
-    const res  = await fetch(
-      'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + token
-    );
+    const res  = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + token);
     const info = await res.json();
 
-    console.log('Google userinfo:', info); // debug
-
     if (info.error) {
-      // Token expirado
       sessionStorage.removeItem('soa_token');
       mostrarLogin('Sessão expirada. Faça login novamente.');
       return;
     }
 
-    const email = info.email || '';
+    const email = (info.email || '').toLowerCase();
+
     if (!email) {
       sessionStorage.removeItem('soa_token');
-      mostrarLogin('❌ Não foi possível obter o e-mail. Tente novamente.');
+      mostrarLogin('❌ Não foi possível obter o e-mail.');
       return;
     }
 
     if (!email.endsWith('@riogrande.ifrs.edu.br')) {
       sessionStorage.removeItem('soa_token');
-      mostrarLogin('❌ Use seu e-mail @riogrande.ifrs.edu.br · Você entrou como: ' + email);
+      mostrarLogin('❌ Use seu e-mail @riogrande.ifrs.edu.br<br>Detectado: ' + email);
       return;
     }
 
     setLoadMsg('Carregando dados...');
-    await carregar(email);
+    const data = await API.carregar(email);
+
+    SOA.perfil      = data.perfil;
+    SOA.editais     = data.editais     || [];
+    SOA.projetos    = data.projetos    || [];
+    SOA.inscricoes  = data.inscricoes  || [];
+    SOA.assiduidade = data.assiduidade || [];
+    SOA.logs        = data.logs        || [];
+
+    iniciarInterface();
+    hideLoading();
 
   } catch(e) {
     sessionStorage.removeItem('soa_token');
@@ -67,34 +75,44 @@ async function buscarEmail(token) {
   }
 }
 
-async function carregar(email) {
-  try {
-    const data      = await API.carregar(email);
-    SOA.perfil      = data.perfil;
-    SOA.editais     = data.editais     || [];
-    SOA.projetos    = data.projetos    || [];
-    SOA.inscricoes  = data.inscricoes  || [];
-    SOA.assiduidade = data.assiduidade || [];
-    SOA.logs        = data.logs        || [];
-    iniciar();
-    hideLoading();
-  } catch(e) {
-    mostrarLogin('❌ Erro ao carregar: ' + e.message);
+function iniciarInterface() {
+  const { perfil, nome } = SOA.perfil;
+  const av = initials(nome);
+
+  if (perfil === 'admin') {
+    document.getElementById('admin-av').textContent   = av;
+    document.getElementById('admin-nome').textContent = nome;
+    Sidebar.render();
+    bindNav('admin-topnav', p => AdminRouter.ir(p));
+    AdminRouter.ir('editais');
+    showShell('admin');
+
+  } else if (perfil === 'coordenador') {
+    document.getElementById('coord-av').textContent   = av;
+    document.getElementById('coord-nome').textContent = nome;
+    bindNav('coord-topnav', p => CoordRouter.ir(p));
+    CoordRouter.ir('home');
+    showShell('coordenador');
+
+  } else {
+    document.getElementById('aluno-av').textContent   = av;
+    document.getElementById('aluno-nome').textContent = nome;
+    bindNav('aluno-topnav', p => AlunoRouter.ir(p));
+    AlunoRouter.ir('editais');
+    showShell('aluno');
   }
 }
 
 function loginURL() {
-  const base     = 'https://accounts.google.com/o/oauth2/v2/auth';
   const redirect = window.location.href.split('#')[0].split('?')[0];
   const params   = new URLSearchParams({
     client_id:     CONFIG.GOOGLE_CLIENT_ID,
     redirect_uri:  redirect,
     response_type: 'token',
     scope:         'openid email profile',
-    prompt:        'select_account',
-    include_granted_scopes: 'true'
+    prompt:        'select_account'
   });
-  return base + '?' + params.toString();
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
 }
 
 function mostrarLogin(msg) {
@@ -103,7 +121,7 @@ function mostrarLogin(msg) {
       <div class="logo-big" style="margin:0 auto 20px">S</div>
       <div class="load-txt">SOA — IFRS Campus Rio Grande</div>
       <div class="load-sub" style="margin-bottom:24px">Sistema de Organização de Ações</div>
-      ${msg ? `<div style="background:#fee2e2;color:#991b1b;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:24px;line-height:1.5">${msg}</div>` : ''}
+      ${msg ? `<div style="background:#fee2e2;color:#991b1b;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:24px;line-height:1.6">${msg}</div>` : ''}
       <a href="${loginURL()}"
         style="display:inline-flex;align-items:center;gap:12px;
                background:#fff;color:#1a1a2e;padding:14px 28px;
@@ -122,32 +140,6 @@ function mostrarLogin(msg) {
         Use seu e-mail @riogrande.ifrs.edu.br
       </div>
     </div>`;
-}
-
-function iniciar() {
-  const { perfil, nome } = SOA.perfil;
-  const av = initials(nome);
-
-  if (perfil === 'admin') {
-    document.getElementById('admin-av').textContent   = av;
-    document.getElementById('admin-nome').textContent = nome;
-    Sidebar.render();
-    bindNav('admin-topnav', p => AdminRouter.ir(p));
-    AdminRouter.ir('editais');
-    showShell('admin');
-  } else if (perfil === 'coordenador') {
-    document.getElementById('coord-av').textContent   = av;
-    document.getElementById('coord-nome').textContent = nome;
-    bindNav('coord-topnav', p => CoordRouter.ir(p));
-    CoordRouter.ir('home');
-    showShell('coordenador');
-  } else {
-    document.getElementById('aluno-av').textContent   = av;
-    document.getElementById('aluno-nome').textContent = nome;
-    bindNav('aluno-topnav', p => AlunoRouter.ir(p));
-    AlunoRouter.ir('editais');
-    showShell('aluno');
-  }
 }
 
 function logout() {
