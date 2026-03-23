@@ -20,14 +20,14 @@ const AdminEditais = {
       </div>
       <div class="phr">
         <div class="export-wrap" id="exp-editais">
-          <button onclick="AdminEditais.toggleExport()" class="btn" style="height:36px;padding:0 16px;background:#0e7490;color:#fff;border:none">↓ Exportar</button>
+          <button onclick="AdminEditais.toggleExport()" style="height:36px;padding:0 16px;border-radius:8px;border:1.5px solid #0e7490;background:#0e7490;color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-width:120px;justify-content:center;box-sizing:border-box">↓ Exportar</button>
           <div class="export-menu">
             <div class="export-item" onclick="AdminEditais.exportar('pdf')">📄 PDF</div>
             <div class="export-item" onclick="AdminEditais.exportar('xlsx')">📊 Excel (.xlsx)</div>
             <div class="export-item" onclick="AdminEditais.exportar('csv')">📋 CSV (vírgula)</div>
           </div>
         </div>
-        <button class="btn bp" onclick="AdminRouter.ir('cad-edital')">+ Novo edital</button>
+        <button onclick="AdminRouter.ir('cad-edital')" style="height:36px;padding:0 16px;border-radius:8px;border:1.5px solid var(--green);background:var(--green);color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;min-width:120px;justify-content:center;box-sizing:border-box">+ Novo edital</button>
       </div>
     </div>
 
