@@ -493,24 +493,6 @@ textarea.inp {
   tbody td:nth-child(n+4) { display: none; }
 }
 
-/* ── Filtros de segmento ─────────────────────────── */
-.segbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1.5px solid var(--g3);
-  background: var(--wh);
-  font-family: 'Inter', sans-serif;
-  font-size: 12px; font-weight: 500;
-  color: var(--g5);
-  cursor: pointer;
-  transition: all .15s;
-}
-.segbtn:hover { border-color: var(--sc, #00843D); color: var(--tx); }
-.segbtn.on    { border-color: var(--sc, #00843D); color: var(--sc, #00843D); background: #f8fffe; font-weight: 600; }
-.segdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── Export dropdown ─────────────────────────────── */
 .export-wrap { position: relative; }
@@ -559,12 +541,12 @@ textarea.inp {
   cursor: pointer;
   transition: all .15s;
 }
-.eseg-btn:hover { border-color: var(--ec); color: var(--ec); }
-.eseg-btn.on    { border-color: var(--ec); background: color-mix(in srgb, var(--ec) 10%, white); color: var(--ec); }
+.eseg-btn:hover { border-color: var(--ec); color: var(--ec); background: #f8f9fa; }
+.eseg-btn.on    { border-color: var(--ec); background: #f8f9fa; color: var(--ec); font-weight: 600; }
 .eseg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .eseg-cnt {
-  background: color-mix(in srgb, var(--ec) 15%, white);
-  color: var(--ec);
+  background: rgba(0,0,0,.07);
+  color: inherit;
   border-radius: 20px;
   padding: 1px 7px;
   font-size: 11px; font-weight: 700;
