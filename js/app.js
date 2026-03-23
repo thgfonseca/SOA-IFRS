@@ -40,11 +40,11 @@ function mostrarLogin(msg) {
       <div class="load-sub" style="margin-bottom:24px">Sistema de Organização de Ações</div>
       ${msg ? `<div style="background:#fee2e2;color:#991b1b;padding:10px 16px;
         border-radius:8px;font-size:13px;margin-bottom:20px;line-height:1.6">${msg}</div>` : ''}
-      <a href="${loginURL}"
+      <button onclick="window.top.location.href='${loginURL}'"
         style="display:inline-flex;align-items:center;gap:12px;
                background:#fff;color:#1a1a2e;padding:14px 28px;
                border-radius:8px;font-family:Inter,sans-serif;
-               font-size:15px;font-weight:500;text-decoration:none;
+               font-size:15px;font-weight:500;cursor:pointer;
                border:1.5px solid #e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,.1)">
         <svg width="20" height="20" viewBox="0 0 24 24">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -53,7 +53,7 @@ function mostrarLogin(msg) {
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
         Entrar com Google Workspace
-      </a>
+      </button>
       <div style="margin-top:16px;font-size:12px;color:#6b7280">
         Use sua conta @riogrande.ifrs.edu.br
       </div>
