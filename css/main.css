@@ -542,3 +542,82 @@ textarea.inp {
   transition: background .12s;
 }
 .export-item:hover { background: var(--g1); color: var(--tx); }
+
+/* ── Filtros eseg-btn (padrão original) ─────────── */
+.eseg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--g3);
+  background: var(--wh);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px; font-weight: 500;
+  color: var(--g5);
+  cursor: pointer;
+  transition: all .15s;
+}
+.eseg-btn:hover { border-color: var(--ec); color: var(--ec); }
+.eseg-btn.on    { border-color: var(--ec); background: color-mix(in srgb, var(--ec) 10%, white); color: var(--ec); }
+.eseg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.eseg-cnt {
+  background: color-mix(in srgb, var(--ec) 15%, white);
+  color: var(--ec);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 11px; font-weight: 700;
+}
+
+/* ── Sortable columns ────────────────────────────── */
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { color: var(--green); }
+.sort-ico { font-size: 10px; opacity: .4; margin-left: 2px; }
+th.sort-asc .sort-ico, th.sort-desc .sort-ico { opacity: 1; color: var(--green); }
+
+/* ── Alarm panel ─────────────────────────────────── */
+.alarm-panel {
+  display: none;
+  border-top: 2px solid #fde68a;
+  background: #fffdf0;
+  padding: 16px 20px;
+}
+.alarm-panel.open { display: block; }
+.alarm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.alarm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #fde68a;
+  margin-top: 4px;
+}
+.send-flash { font-size: 12px; color: var(--green); font-weight: 600; display: none; margin-right: auto; }
+.send-flash.show { display: inline; }
+
+/* mchk — checkboxes estilo chip */
+.mchk-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.mchk {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 20px;
+  border: 1.5px solid var(--g3);
+  font-size: 12px; font-weight: 500; color: var(--g5);
+  cursor: pointer; transition: all .14s; background: var(--wh); user-select: none;
+}
+.mchk.on { border-color: var(--exte); background: #fffbeb; color: #b45309; }
+
+/* selbox alias */
+.selbox {
+  height: 40px; padding: 0 12px;
+  border: 1.5px solid var(--g3); border-radius: 8px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--tx);
+  width: 100%; outline: none; background: var(--wh);
+}
+.selbox:focus { border-color: var(--green); }
