@@ -31,7 +31,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ── Tela de login ──────────────────────────────────
 function mostrarLogin(msg) {
-  const loginURL = CONFIG.API_URL + '?action=login';
+  const loginURL = CONFIG.LOGIN_URL + '?action=login';
 
   document.getElementById('loading').innerHTML = `
     <div style="text-align:center;padding:20px;max-width:400px">
