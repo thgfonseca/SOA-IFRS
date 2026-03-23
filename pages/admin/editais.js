@@ -78,11 +78,11 @@ const AdminEditais = {
     <div class="card">
       <table id="tbl-editais">
         <thead><tr>
-          <th class="sortable" onclick="AdminEditais.sortCol(0,this)">Número / Ano <span class="sort-ico">↕</span></th>
-          <th class="sortable" onclick="AdminEditais.sortCol(1,this)">Tipo <span class="sort-ico">↕</span></th>
-          <th class="sortable" onclick="AdminEditais.sortCol(2,this)">Segmento <span class="sort-ico">↕</span></th>
-          <th class="sortable" onclick="AdminEditais.sortCol(3,this)">Vigência <span class="sort-ico">↕</span></th>
-          <th class="sortable" onclick="AdminEditais.sortCol(4,this)">Status <span class="sort-ico">↕</span></th>
+          <th class="sortable" onclick="AdminEditais.sortCol(0,this)">Status <span class="sort-ico">↕</span></th>
+          <th class="sortable" onclick="AdminEditais.sortCol(1,this)">Segmento <span class="sort-ico">↕</span></th>
+          <th class="sortable" onclick="AdminEditais.sortCol(2,this)">Número / Ano <span class="sort-ico">↕</span></th>
+          <th class="sortable" onclick="AdminEditais.sortCol(3,this)">Tipo <span class="sort-ico">↕</span></th>
+          <th class="sortable" onclick="AdminEditais.sortCol(4,this)">Vigência <span class="sort-ico">↕</span></th>
           <th>Ações</th>
           <th style="white-space:nowrap">Última atualização</th>
         </tr></thead>
@@ -141,11 +141,11 @@ const AdminEditais = {
 
       return `
       <tr id="edital-row-${e.id}" data-seg="${e.segmento}" data-status="${e.status}">
+        <td><span class="b" style="${ss};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${e.status}</span></td>
+        <td><span class="b" style="background:${sc.bg};color:${sc.color};border:1px solid ${sc.border}">${e.segmento}</span></td>
         <td><div class="tm">${e.numero}</div><div class="ts">${e.tipo || ''}</div></td>
         <td>${e.tipo || ''}</td>
-        <td><span class="b" style="background:${sc.bg};color:${sc.color};border:1px solid ${sc.border}">${e.segmento}</span></td>
         <td style="font-size:12px;white-space:nowrap">${AdminEditais._fmtData(e.vigIni)} – ${AdminEditais._fmtData(e.vigFim)}</td>
-        <td><span class="b" style="${ss};padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600">${e.status}</span></td>
         <td><div class="acts">
           <button class="ab" onclick="AdminEditais.toggleNotif('${e.id}')" title="Notificações" style="font-size:14px;padding:0 8px">🔔</button>
           <button class="ab" onclick="AdminEditais.toggleVer('${e.id}')">Ver</button>
@@ -153,7 +153,7 @@ const AdminEditais = {
           <button class="ab" onclick="AdminEditais.duplicar('${e.id}')">Duplicar</button>
           <button class="ab dg" onclick="AdminEditais.excluir('${e.id}','${tituloSafe}')">Excluir</button>
         </div></td>
-        <td style="font-size:11px;color:var(--g4)">${e.criadoEm || ''}</td>
+        <td style="font-size:11px;color:var(--g4)">${AdminEditais._fmtData(e.criadoEm)}</td>
       </tr>
 
       <!-- Painel Ver -->
@@ -381,13 +381,21 @@ const AdminEditais = {
 
   // ── Formata data para dd/MM/yyyy ────────────────
   _fmtData(val) {
-    if (!val) return '—';
-    // Já está no formato correto dd/MM/yyyy
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
-    // Tenta parsear como Date string
+    if (!val || val === '—') return '—';
+    // Já está no formato correto dd/MM/yyyy ou dd/MM/yyyy HH:mm:ss
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(val)) return val;
+    // Tenta parsear qualquer Date string
     const d = new Date(val);
-    if (!isNaN(d)) {
-      return d.toLocaleDateString('pt-BR');
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mi = String(d.getMinutes()).padStart(2,'0');
+      const ss = String(d.getSeconds()).padStart(2,'0');
+      // Se tem componente de hora, mostra completo
+      if (val.includes(':')) return dd+'/'+mm+'/'+yyyy+' '+hh+':'+mi+':'+ss;
+      return dd+'/'+mm+'/'+yyyy;
     }
     return val;
   },
