@@ -20,7 +20,7 @@ const AdminEditais = {
       </div>
       <div class="phr">
         <div class="export-wrap" id="exp-editais">
-          <button onclick="AdminEditais.toggleExport()" style="height:40px;padding:0 20px;border-radius:8px;border:none;background:#0e7490;color:#fff;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap">↓ Exportar</button>
+          <button onclick="AdminEditais.toggleExport()" class="btn" style="height:36px;padding:0 16px;background:#0e7490;color:#fff;border:none">↓ Exportar</button>
           <div class="export-menu">
             <div class="export-item" onclick="AdminEditais.exportar('pdf')">📄 PDF</div>
             <div class="export-item" onclick="AdminEditais.exportar('xlsx')">📊 Excel (.xlsx)</div>
