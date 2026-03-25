@@ -3,7 +3,8 @@
 // Code.gs — API REST para GitHub Pages
 // ═══════════════════════════════════════════════════
 
-var SHEET_ID = ''; // ← cole o ID da sua planilha aqui
+var SHEET_ID    = ''; // ← cole o ID da sua planilha aqui
+var GITHUB_URL  = 'https://thgfonseca.github.io/SOA-IFRS/'; // ← URL do GitHub Pages
 
 var ADMINS = [
   'den@riogrande.ifrs.edu.br',
