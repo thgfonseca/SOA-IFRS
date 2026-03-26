@@ -141,9 +141,11 @@ function doGet(e) {
     var assiduidade = sheetToObjects(ss.getSheetByName('assiduidade')) || [];
     var logs        = [];
 
-    // Filtrar registros com soft delete — nunca expor ao frontend
+    // Filtrar soft delete — rascunhos visíveis apenas para admin
     editais = editais.filter(function(ed) {
-      return !ed.deleted_at || ed.deleted_at === '';
+      if (ed.deleted_at && ed.deleted_at !== '') return false; // excluídos: nunca
+      if (u.perfil !== 'admin' && ed.status === 'Rascunho') return false; // rascunho: só admin
+      return true;
     });
 
     if (u.perfil === 'coordenador') {
@@ -182,6 +184,8 @@ function doPost(e) {
 
     if (action === 'salvarEdital')      return _salvarEdital(body, u);
     if (action === 'excluirEdital')     return _excluirEdital(body, u);
+    if (action === 'uploadDocumento')   return _uploadDocumento(body, u);
+    if (action === 'enviarNotificacao') return _enviarNotificacao(body, u);
     if (action === 'salvarProjeto')     return _salvarProjeto(body, u);
     if (action === 'excluirProjeto')    return _excluirProjeto(body, u);
     if (action === 'salvarInscricao')   return _salvarInscricao(body, u);
@@ -279,6 +283,7 @@ function _salvarEdital(b, u) {
     String(b.titulo     || ''),
     String(b.segmento   || ''),
     String(b.tipo       || ''),
+    String(b.ambito     || ''),
     String(b.status     || 'Rascunho'),
     String(b.vigIni     || ''),
     String(b.vigFim     || ''),
@@ -287,6 +292,10 @@ function _salvarEdital(b, u) {
     String(b.vagas      || ''),
     String(b.descricao  || ''),
     String(b.documentos || '[]'),
+    String(b.recursos   || '[]'),
+    String(b.bolsas     || '[]'),
+    String(b.vigencias  || '[]'),
+    String(b.cronograma || '[]'),
     u.email,  // criadoPor
     now,      // criadoEm
     now,      // updated_at
@@ -330,6 +339,101 @@ function _excluirEdital(b, u) {
     return okOut();
   }
   return errOut('Edital não encontrado.');
+}
+
+// ── UPLOAD DOCUMENTO → GOOGLE DRIVE ───────────────
+function _uploadDocumento(b, u) {
+  if (u.perfil !== 'admin') return errOut('Sem permissão');
+  if (!b.conteudo || !b.nomeArquivo) return errOut('Dados de upload incompletos.');
+
+  var numero = String(b.editalNumero || 'sem-numero').replace(/[^a-zA-Z0-9\-_]/g, '_');
+  var ano    = String(b.editalAno || new Date().getFullYear());
+  var nome   = String(b.nomeArquivo).replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
+  var mime   = String(b.mimeType || 'application/octet-stream');
+
+  try {
+    // Cria hierarquia de pastas: Editais > Editais_Ano > Edital_Numero_Ano
+    function getPastaOuCria(parent, nomePasta) {
+      var it = parent.getFoldersByName(nomePasta);
+      return it.hasNext() ? it.next() : parent.createFolder(nomePasta);
+    }
+    var pastaRaiz   = getPastaOuCria(DriveApp.getRootFolder(), 'Editais');
+    var pastaAno    = getPastaOuCria(pastaRaiz, 'Editais_' + ano);
+    var pastaEdital = getPastaOuCria(pastaAno, 'Edital_' + numero + '_' + ano);
+
+    // Decodificar base64 e criar arquivo
+    var bytes   = Utilities.base64Decode(b.conteudo);
+    var blob    = Utilities.newBlob(bytes, mime, nome);
+    var arquivo = pastaEdital.createFile(blob);
+
+    // Permitir acesso público somente leitura via link
+    arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    var link = arquivo.getDownloadUrl();
+    log(u, 'Upload documento', 'editais', nome + ' → ' + pastaEdital.getName());
+
+    return okOut({
+      url:        link,
+      nome:       arquivo.getName(),
+      mimeType:   mime,
+      uploadedAt: ts()
+    });
+  } catch(ex) {
+    return errOut('Erro no upload para o Drive: ' + ex.message);
+  }
+}
+
+// ── ENVIAR NOTIFICAÇÃO ─────────────────────────────
+function _enviarNotificacao(b, u) {
+  if (u.perfil !== 'admin') return errOut('Sem permissão');
+  if (!b.assunto || !b.mensagem) return errOut('Assunto e mensagem são obrigatórios.');
+
+  try {
+    // Buscar destinatários do edital (coordenadores e inscritos)
+    var ss          = SpreadsheetApp.openById(SHEET_ID);
+    var inscricoes  = sheetToObjects(ss.getSheetByName('inscricoes')) || [];
+    var destinatarios = [];
+
+    if (b.editalId) {
+      var edInscs = inscricoes.filter(function(i) { return i.editalId === b.editalId; });
+      edInscs.forEach(function(i) {
+        if (i.alunoEmail)  destinatarios.push(i.alunoEmail);
+        if (i.coordEmail)  destinatarios.push(i.coordEmail);
+      });
+    }
+
+    // Remover duplicatas e e-mails inválidos
+    var emails = destinatarios.filter(function(e, idx, arr) {
+      return e && e.indexOf('@') > 0 && arr.indexOf(e) === idx;
+    });
+
+    if (emails.length === 0) {
+      // Registrar tentativa mesmo sem destinatários
+      log(u, 'Notificação (sem destinatários)', 'editais', b.assunto);
+      return okOut({ enviados: 0 });
+    }
+
+    // Enviar em lotes de 50 (limite do MailApp)
+    var assuntoSafe  = String(b.assunto  || '').substring(0, 255);
+    var mensagemSafe = String(b.mensagem || '').substring(0, 2000);
+    var enviados = 0;
+
+    emails.slice(0, 100).forEach(function(email) {
+      try {
+        MailApp.sendEmail({
+          to:      email,
+          subject: assuntoSafe,
+          body:    mensagemSafe + '\n\n---\nSOA — IFRS Campus Rio Grande\nhttps://thgfonseca.github.io/SOA-IFRS/'
+        });
+        enviados++;
+      } catch(ex) { Logger.log('Erro ao enviar para ' + email + ': ' + ex.message); }
+    });
+
+    log(u, 'Notificação enviada', 'editais', b.assunto + ' | ' + enviados + ' destinatário(s)');
+    return okOut({ enviados: enviados });
+  } catch(ex) {
+    return errOut('Erro ao enviar notificação: ' + ex.message);
+  }
 }
 
 // ── PROJETOS ───────────────────────────────────────
@@ -426,11 +530,12 @@ function setupPlanilha() {
       s.setFrozenRows(1);
     }
   }
-  // Estrutura atualizada: documentos, updated_at, deleted_at adicionados
+  // Estrutura completa: novos campos ambito, recursos, bolsas, vigencias, cronograma
   aba('editais', [
-    'id','numero','titulo','segmento','tipo','status',
+    'id','numero','titulo','segmento','tipo','ambito','status',
     'vigIni','vigFim','bolsaValor','bolsaCH','vagas','descricao',
-    'documentos','criadoPor','criadoEm','updated_at','deleted_at'
+    'documentos','recursos','bolsas','vigencias','cronograma',
+    'criadoPor','criadoEm','updated_at','deleted_at'
   ], '#00843D');
   aba('projetos',    ['id','editalId','titulo','segmento','status','coordEmail','coordNome','recurso','tipoProjeto','criadoPor','criadoEm'], '#54a4c3');
   aba('inscricoes',  ['id','alunoEmail','alunoNome','editalId','editalNome','projetoId','projetoNome','modalidade','status','coordEmail','motivacao','lattes','criadoEm','avaliadoEm','observacao'], '#f4b61d');

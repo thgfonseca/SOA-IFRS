@@ -19,6 +19,12 @@ const API = {
   },
   async salvarAssiduidade(d)  { return API._post({ action:'salvarAssiduidade', ...d }); },
 
+  // Upload de arquivo para o Google Drive via Apps Script
+  async uploadDocumento(dados) { return API._post({ action:'uploadDocumento', ...dados }); },
+
+  // Enviar notificação por e-mail para participantes do edital
+  async enviarNotificacao(dados) { return API._post({ action:'enviarNotificacao', ...dados }); },
+
   async _post(body) {
     const res  = await fetch(CONFIG.API_URL, {
       method: 'POST',
