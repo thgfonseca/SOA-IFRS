@@ -352,12 +352,14 @@ function _uploadDocumento(b, u) {
   var mime   = String(b.mimeType || 'application/octet-stream');
 
   try {
-    // Cria hierarquia de pastas: Editais > Editais_Ano > Edital_Numero_Ano
+    // Cria hierarquia de pastas dentro da pasta raiz configurada
+    // Raiz: https://drive.google.com/drive/folders/1XrUshXlcnbbrp8l3SwTYI3wDB8zjLHZ8
+    var DRIVE_ROOT_ID = '1XrUshXlcnbbrp8l3SwTYI3wDB8zjLHZ8';
     function getPastaOuCria(parent, nomePasta) {
       var it = parent.getFoldersByName(nomePasta);
       return it.hasNext() ? it.next() : parent.createFolder(nomePasta);
     }
-    var pastaRaiz   = getPastaOuCria(DriveApp.getRootFolder(), 'Editais');
+    var pastaRaiz   = DriveApp.getFolderById(DRIVE_ROOT_ID);
     var pastaAno    = getPastaOuCria(pastaRaiz, 'Editais_' + ano);
     var pastaEdital = getPastaOuCria(pastaAno, 'Edital_' + numero + '_' + ano);
 
@@ -369,7 +371,8 @@ function _uploadDocumento(b, u) {
     // Permitir acesso público somente leitura via link
     arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    var link = arquivo.getDownloadUrl();
+    // URL de visualização pública (compatível com HTTPS, abre no browser)
+    var link = 'https://drive.google.com/file/d/' + arquivo.getId() + '/view?usp=sharing';
     log(u, 'Upload documento', 'editais', nome + ' → ' + pastaEdital.getName());
 
     return okOut({
@@ -389,23 +392,26 @@ function _enviarNotificacao(b, u) {
   if (!b.assunto || !b.mensagem) return errOut('Assunto e mensagem são obrigatórios.');
 
   try {
-    // Buscar destinatários do edital (coordenadores e inscritos)
-    var ss          = SpreadsheetApp.openById(SHEET_ID);
-    var inscricoes  = sheetToObjects(ss.getSheetByName('inscricoes')) || [];
-    var destinatarios = [];
+    var emails = [];
 
-    if (b.editalId) {
-      var edInscs = inscricoes.filter(function(i) { return i.editalId === b.editalId; });
-      edInscs.forEach(function(i) {
-        if (i.alunoEmail)  destinatarios.push(i.alunoEmail);
-        if (i.coordEmail)  destinatarios.push(i.coordEmail);
+    // Se vieram destinatários explícitos (notificação de etapa do cronograma)
+    if (b.destinatarios && Array.isArray(b.destinatarios) && b.destinatarios.length > 0) {
+      emails = b.destinatarios.filter(function(em) { return em && em.indexOf('@') > 0; });
+    } else if (b.editalId) {
+      // Buscar destinatários do edital (inscritos + coordenadores)
+      var ss2        = SpreadsheetApp.openById(SHEET_ID);
+      var inscricoes = sheetToObjects(ss2.getSheetByName('inscricoes')) || [];
+      var todos      = [];
+      inscricoes
+        .filter(function(i) { return i.editalId === b.editalId; })
+        .forEach(function(i) {
+          if (i.alunoEmail) todos.push(i.alunoEmail);
+          if (i.coordEmail) todos.push(i.coordEmail);
+        });
+      emails = todos.filter(function(em, idx2, arr) {
+        return em && em.indexOf('@') > 0 && arr.indexOf(em) === idx2;
       });
     }
-
-    // Remover duplicatas e e-mails inválidos
-    var emails = destinatarios.filter(function(e, idx, arr) {
-      return e && e.indexOf('@') > 0 && arr.indexOf(e) === idx;
-    });
 
     if (emails.length === 0) {
       // Registrar tentativa mesmo sem destinatários

@@ -23,9 +23,9 @@ const AdminEditais = {
             ↓ Exportar
           </button>
           <div class="export-menu">
-            <div class="export-item" onclick="AdminEditais.exportar('pdf')">📄 PDF — Lista</div>
+            <div class="export-item" onclick="AdminEditais.exportar('pdf')">📄 PDF</div>
             <div class="export-item" onclick="AdminEditais.exportar('xlsx')">📊 Excel (.xlsx)</div>
-            <div class="export-item" onclick="AdminEditais.exportar('csv')">📋 CSV</div>
+            <div class="export-item" onclick="AdminEditais.exportar('csv')">📋 CSV (vírgula)</div>
           </div>
         </div>
         <button onclick="AdminCadEdital.render(document.getElementById('app'))"
@@ -797,13 +797,13 @@ const AdminCadEdital = {
         </div>
         <button class="btn bo" style="font-size:12px" onclick="AdminCadEdital.addCrono()">+ Adicionar etapa</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 1fr 36px;gap:6px;padding:8px 20px;border-bottom:1px solid var(--g3);background:var(--g1)">
+      <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 1fr 72px;gap:6px;padding:8px 20px;border-bottom:1px solid var(--g3);background:var(--g1)">
         <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Etapa</div>
         <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Início</div>
         <div></div>
         <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Fim</div>
         <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Responsável</div>
-        <div></div>
+        <div style="font-size:11px;font-weight:600;color:var(--g4);text-transform:uppercase;letter-spacing:.06em">Ações</div>
       </div>
       <div id="crono-rows" style="padding:12px 20px;display:flex;flex-direction:column;gap:8px"></div>
     </div>
@@ -850,6 +850,23 @@ const AdminCadEdital = {
 
   _inputSty: 'height:36px;padding:0 10px;border:1.5px solid var(--g3);border-radius:7px;font-family:"Inter",sans-serif;font-size:13px;color:var(--tx);background:var(--wh);outline:none;box-sizing:border-box',
 
+  // Converte dd/MM/yyyy → yyyy-MM-dd  (para valor do <input type="date">)
+  _toInputDate(v) {
+    if (!v) return '';
+    const m = String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    if (/^\d{4}-\d{2}-\d{2}/.test(String(v))) return String(v).substring(0,10);
+    return '';
+  },
+
+  // Converte yyyy-MM-dd → dd/MM/yyyy  (para armazenamento / exibição)
+  _fromInputDate(v) {
+    if (!v) return '';
+    const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return v;
+  },
+
   // ── 1.1 Tipo / Âmbito Outro ───────────────────────
   _onTipoChange() {
     const sel = document.getElementById('f-tipo');
@@ -870,7 +887,7 @@ const AdminCadEdital = {
     const body = document.getElementById('contatos-body');
     if (!card || !body) return;
     if (!seg) { card.style.display = 'none'; return; }
-    const segs = seg === 'Indissociável' ? ['Ensino','Pesquisa','Extensão'] : [seg];
+    const segs = seg === 'Indissociável' ? ['Ensino','Pesquisa','Extensão','Indissociável'] : [seg];
     body.innerHTML = segs.map(s => `
       <div class="fl"><label>${s} — e-mail de contato</label>
         <input class="inp" id="contato-${s}" placeholder="email@riogrande.ifrs.edu.br"></div>
@@ -1121,10 +1138,10 @@ const AdminCadEdital = {
           <label style="font-size:11px;font-weight:600;color:var(--g5);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px">Arquivo</label>
           <div style="display:flex;gap:6px;align-items:center">
             <input type="file" id="pdf-file-${idx}" accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.zip"
-              style="font-size:12px;flex:1" ${temArquivo ? 'style="display:none"' : ''}>
+              style="font-size:12px;flex:1;${temArquivo ? 'display:none;' : ''}">
             <button onclick="AdminCadEdital._uploadArquivo(${idx})"
               id="pdf-upload-btn-${idx}"
-              style="${st};padding:0 12px;background:#0e7490;color:#fff;border-color:#0e7490;cursor:pointer;white-space:nowrap;font-size:12px;${temArquivo ? 'display:none' : ''}">
+              style="${st};padding:0 12px;background:#0e7490;color:#fff;border-color:#0e7490;cursor:pointer;white-space:nowrap;font-size:12px;${temArquivo ? 'display:none;' : ''}">
               ⬆ Enviar
             </button>
           </div>
@@ -1265,11 +1282,11 @@ const AdminCadEdital = {
         <select id="vig-seg-${idx}" style="${st};width:100%">
           ${this.SEGS.map(s=>`<option${s===(prefill.segmento||'Pesquisa')?' selected':''}>${s}</option>`).join('')}
         </select>
-        <input type="text" id="vig-ini-${idx}" value="${esc(prefill.ini||'')}" placeholder="dd/mm/AAAA" maxlength="10"
-          oninput="AdminCadEdital._maskData(this)" style="${st};width:100%;text-align:center">
+        <input type="date" id="vig-ini-${idx}" value="${AdminCadEdital._toInputDate(prefill.ini||'')}"
+          style="${st};width:100%">
         <span style="text-align:center;color:var(--g4);font-size:12px;font-weight:600">→</span>
-        <input type="text" id="vig-fim-${idx}" value="${esc(prefill.fim||'')}" placeholder="dd/mm/AAAA" maxlength="10"
-          oninput="AdminCadEdital._maskData(this)" style="${st};width:100%;text-align:center">
+        <input type="date" id="vig-fim-${idx}" value="${AdminCadEdital._toInputDate(prefill.fim||'')}"
+          style="${st};width:100%">
         <button onclick="AdminCadEdital.delVig(${idx})"
           style="width:32px;height:32px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px">✕</button>
       </div>`;
@@ -1283,16 +1300,13 @@ const AdminCadEdital = {
     document.querySelectorAll('[id^="vig-row-"]').forEach(row => {
       const idx = row.id.replace('vig-row-','');
       const seg = document.getElementById(`vig-seg-${idx}`)?.value || '';
-      const ini = (document.getElementById(`vig-ini-${idx}`)?.value || '').trim();
-      const fim = (document.getElementById(`vig-fim-${idx}`)?.value || '').trim();
+      const iniRaw = (document.getElementById(`vig-ini-${idx}`)?.value || '').trim(); // yyyy-MM-dd
+      const fimRaw = (document.getElementById(`vig-fim-${idx}`)?.value || '').trim(); // yyyy-MM-dd
       if (!seg) return;
-      if (ini && !this._isDataValida(ini))
-        throw new Error(`Data de início inválida para ${seg}: "${ini}". Use dd/mm/AAAA.`);
-      if (fim && !this._isDataValida(fim))
-        throw new Error(`Data de término inválida para ${seg}: "${fim}". Use dd/mm/AAAA.`);
-      if (ini && fim && this._dateMaior(ini, fim))
+      if (iniRaw && fimRaw && iniRaw > fimRaw)
         throw new Error(`Data de início maior que término em ${seg}.`);
-      vigs.push({ segmento: seg, ini, fim });
+      // Armazenar no formato dd/MM/yyyy
+      vigs.push({ segmento: seg, ini: this._fromInputDate(iniRaw), fim: this._fromInputDate(fimRaw) });
     });
     return vigs;
   },
@@ -1309,17 +1323,18 @@ const AdminCadEdital = {
       const div  = document.createElement('div');
       div.id = `crono-${idx}`;
       div.style.cssText = 'background:var(--wh);border:1px solid var(--g3);border-radius:8px;padding:8px 10px';
+      const etapaEsc = String(e.etapa||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       div.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 1fr 36px;gap:6px;align-items:start">
-          <input type="text" value="${String(e.etapa||'').replace(/"/g,'&quot;')}" placeholder="Nome da etapa"
+        <div style="display:grid;grid-template-columns:1fr 140px 12px 140px 1fr 72px;gap:6px;align-items:start">
+          <input type="text" value="${etapaEsc}" placeholder="Nome da etapa"
             style="${st};width:100%" oninput="AdminCadEdital._cronoEtapas[${idx}].etapa=this.value">
-          <input type="text" id="crono-ini-${idx}" value="${e.dataIni||''}" placeholder="dd/mm/AAAA" maxlength="10"
-            style="${st};width:100%;text-align:center"
-            oninput="AdminCadEdital._maskData(this);AdminCadEdital._cronoEtapas[${idx}].dataIni=this.value">
+          <input type="date" id="crono-ini-${idx}" value="${AdminCadEdital._toInputDate(e.dataIni||'')}"
+            style="${st};width:100%"
+            onchange="AdminCadEdital._cronoEtapas[${idx}].dataIni=AdminCadEdital._fromInputDate(this.value)">
           <span style="font-size:11px;color:var(--g4);text-align:center;padding-top:10px">→</span>
-          <input type="text" id="crono-fim-${idx}" value="${e.dataFim||''}" placeholder="dd/mm/AAAA" maxlength="10"
-            style="${st};width:100%;text-align:center"
-            oninput="AdminCadEdital._maskData(this);AdminCadEdital._cronoEtapas[${idx}].dataFim=this.value">
+          <input type="date" id="crono-fim-${idx}" value="${AdminCadEdital._toInputDate(e.dataFim||'')}"
+            style="${st};width:100%"
+            onchange="AdminCadEdital._cronoEtapas[${idx}].dataFim=AdminCadEdital._fromInputDate(this.value)">
           <div>
             <select style="${st};width:100%" onchange="AdminCadEdital._onCronoRespChange(${idx},this.value)">${opts}</select>
             <input type="text" id="crono-resp-outro-${idx}" value="${String(e.respOutro||'').replace(/"/g,'&quot;')}"
@@ -1327,8 +1342,41 @@ const AdminCadEdital = {
               style="${st};width:100%;margin-top:4px;${isOutroResp ? '' : 'display:none'}"
               oninput="AdminCadEdital._cronoEtapas[${idx}].respOutro=this.value">
           </div>
-          <button onclick="AdminCadEdital.delCrono(${idx})"
-            style="width:32px;height:32px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px;margin-top:2px">✕</button>
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center;padding-top:2px">
+            <button onclick="AdminCadEdital._toggleNotifCrono(${idx})" title="Enviar notificação para esta etapa"
+              style="width:32px;height:32px;border-radius:6px;border:1.5px solid #f4b61d;background:transparent;color:#d97706;cursor:pointer;font-size:14px">🔔</button>
+            <button onclick="AdminCadEdital.delCrono(${idx})"
+              style="width:32px;height:32px;border-radius:6px;border:1px solid #fca5a5;background:transparent;color:#ef4444;cursor:pointer;font-size:13px">✕</button>
+          </div>
+        </div>
+        <!-- Painel de notificação da etapa -->
+        <div id="crono-notif-${idx}" style="display:none;margin-top:8px;padding:12px 14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px">
+          <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:10px">🔔 Notificação — ${etapaEsc}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--g5);display:block;margin-bottom:3px">Assunto</label>
+              <input type="text" id="crono-notif-assunto-${idx}"
+                value="SOA/IFRS — ${etapaEsc}"
+                style="${st};width:100%">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--g5);display:block;margin-bottom:3px">
+                E-mails extras <span style="font-weight:400;color:var(--g4)">(vírgula, opcional)</span>
+              </label>
+              <input type="text" id="crono-notif-dest-${idx}" placeholder="extra1@ifrs.edu.br, extra2@ifrs.edu.br"
+                style="${st};width:100%">
+            </div>
+          </div>
+          <label style="font-size:11px;font-weight:600;color:var(--g5);display:block;margin-bottom:3px">Mensagem</label>
+          <textarea id="crono-notif-msg-${idx}" rows="3"
+            placeholder="Mensagem personalizada (deixe em branco para usar o padrão)..."
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);box-sizing:border-box;resize:vertical"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+            <button onclick="AdminCadEdital._toggleNotifCrono(${idx})"
+              style="height:30px;padding:0 14px;border-radius:6px;border:1px solid var(--g3);background:transparent;cursor:pointer;font-size:12px">Cancelar</button>
+            <button onclick="AdminCadEdital._enviarNotifCrono(${idx})"
+              style="height:30px;padding:0 14px;border-radius:6px;border:none;background:#f59e0b;color:#1c1917;cursor:pointer;font-size:12px;font-weight:600">✉ Enviar notificação</button>
+          </div>
         </div>`;
       container.appendChild(div);
     });
@@ -1351,6 +1399,37 @@ const AdminCadEdital = {
     if (this._cronoEtapas.length <= 1) return;
     this._cronoEtapas.splice(idx, 1);
     this.renderCrono();
+  },
+
+  _toggleNotifCrono(idx) {
+    const panel = document.getElementById(`crono-notif-${idx}`);
+    if (!panel) return;
+    panel.style.display = panel.style.display === 'none' ? '' : 'none';
+  },
+
+  async _enviarNotifCrono(idx) {
+    const assunto = (document.getElementById(`crono-notif-assunto-${idx}`)?.value || '').trim();
+    const msg     = (document.getElementById(`crono-notif-msg-${idx}`)?.value     || '').trim();
+    const destStr = (document.getElementById(`crono-notif-dest-${idx}`)?.value    || '').trim();
+    if (!assunto) { toast('⚠ Preencha o assunto da notificação.'); return; }
+
+    const titulo  = val('f-titulo') || 'Edital';
+    const etapa   = this._cronoEtapas[idx]?.etapa || '';
+    const msgFinal = msg || `Prezado(a),\n\nInformamos que a etapa "${etapa}" está prevista no cronograma do edital:\n\n${titulo}\n\nAcesse o SOA para mais informações.\n\nAtenciosamente,\nSecretaria Acadêmica — IFRS Campus Rio Grande`;
+
+    const extras = destStr ? destStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    try {
+      toast('⏳ Enviando notificação...');
+      const res = await API.enviarNotificacao({
+        editalId:      this._editId || '',
+        assunto,
+        mensagem:      msgFinal,
+        destinatarios: extras.length > 0 ? extras : undefined
+      });
+      toast(`✉ Notificação enviada! (${res.enviados || 0} destinatário(s))`);
+      this._toggleNotifCrono(idx);
+    } catch(e) { toast('❌ ' + e.message); }
   },
 
   // ── Salvar ────────────────────────────────────────
