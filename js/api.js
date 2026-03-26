@@ -25,6 +25,9 @@ const API = {
   // Enviar notificação por e-mail para participantes do edital
   async enviarNotificacao(dados) { return API._post({ action:'enviarNotificacao', ...dados }); },
 
+  // Agendar notificação por e-mail com data/hora definida (trigger automático)
+  async agendarNotificacao(dados) { return API._post({ action:'agendarNotificacao', ...dados }); },
+
   async _post(body) {
     const res  = await fetch(CONFIG.API_URL, {
       method: 'POST',

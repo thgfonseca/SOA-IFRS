@@ -182,15 +182,16 @@ function doPost(e) {
     var u      = buildPerfil(email);
     var action = body.action;
 
-    if (action === 'salvarEdital')      return _salvarEdital(body, u);
-    if (action === 'excluirEdital')     return _excluirEdital(body, u);
-    if (action === 'uploadDocumento')   return _uploadDocumento(body, u);
-    if (action === 'enviarNotificacao') return _enviarNotificacao(body, u);
-    if (action === 'salvarProjeto')     return _salvarProjeto(body, u);
-    if (action === 'excluirProjeto')    return _excluirProjeto(body, u);
-    if (action === 'salvarInscricao')   return _salvarInscricao(body, u);
-    if (action === 'avaliarInscricao')  return _avaliarInscricao(body, u);
-    if (action === 'salvarAssiduidade') return _salvarAssiduidade(body, u);
+    if (action === 'salvarEdital')       return _salvarEdital(body, u);
+    if (action === 'excluirEdital')      return _excluirEdital(body, u);
+    if (action === 'uploadDocumento')    return _uploadDocumento(body, u);
+    if (action === 'enviarNotificacao')  return _enviarNotificacao(body, u);
+    if (action === 'agendarNotificacao') return _agendarNotificacao(body, u);
+    if (action === 'salvarProjeto')      return _salvarProjeto(body, u);
+    if (action === 'excluirProjeto')     return _excluirProjeto(body, u);
+    if (action === 'salvarInscricao')    return _salvarInscricao(body, u);
+    if (action === 'avaliarInscricao')   return _avaliarInscricao(body, u);
+    if (action === 'salvarAssiduidade')  return _salvarAssiduidade(body, u);
 
     return errOut('Ação desconhecida: ' + action);
   } catch(ex) { return errOut(ex.message); }
@@ -442,6 +443,126 @@ function _enviarNotificacao(b, u) {
   }
 }
 
+// ── AGENDAR NOTIFICAÇÃO ────────────────────────────
+function _agendarNotificacao(b, u) {
+  if (u.perfil !== 'admin') return errOut('Sem permissão');
+  if (!b.assunto || !b.mensagem) return errOut('Assunto e mensagem são obrigatórios.');
+  if (!b.agendadoPara) return errOut('Data/hora de envio é obrigatória para agendamento.');
+
+  var sheet = getSheet('notificacoes_agendadas');
+  if (!sheet) return errOut('Aba notificacoes_agendadas não encontrada. Execute setupPlanilha().');
+
+  var id  = 'NT-' + gerarId();
+  var now = ts();
+  var destin = b.destinatarios && b.destinatarios.length > 0
+    ? JSON.stringify(b.destinatarios) : '';
+
+  sheet.appendRow([
+    id,
+    String(b.editalId    || ''),
+    String(b.assunto     || '').substring(0, 255),
+    String(b.mensagem    || '').substring(0, 2000),
+    destin,
+    String(b.agendadoPara),   // dd/MM/yyyy HH:mm
+    u.email,
+    'pendente',
+    now,
+    '',   // enviadoEm
+    ''    // erro
+  ]);
+
+  _garantirTriggerAgendamentos();
+  log(u, 'Agendou notificação', 'notificacoes', b.assunto + ' · para: ' + b.agendadoPara);
+  return okOut({ id: id, agendadoPara: b.agendadoPara });
+}
+
+// ── VERIFICAR NOTIFICAÇÕES AGENDADAS (trigger) ─────
+// Executado automaticamente pelo Apps Script a cada 30 minutos
+function verificarNotificacoesAgendadas() {
+  var sheet = getSheet('notificacoes_agendadas');
+  if (!sheet) return;
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+  var h    = data[0];
+
+  var statusCol    = h.indexOf('status');
+  var enviadoEmCol = h.indexOf('enviadoEm');
+  var erroCol      = h.indexOf('erro');
+  var agora        = new Date();
+
+  for (var i = 1; i < data.length; i++) {
+    var row = {};
+    h.forEach(function(k, c) { row[k] = String(data[i][c] || ''); });
+    if (row.status !== 'pendente') continue;
+
+    // Parse dd/MM/yyyy HH:mm
+    var m = row.agendadoPara.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+    if (!m) continue;
+    var dataEnvio = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+    if (dataEnvio > agora) continue;  // ainda não chegou a hora
+
+    // Coletar destinatários
+    var emails = [];
+    if (row.destinatarios) {
+      try { emails = JSON.parse(row.destinatarios); } catch(_) {}
+    }
+    if (!Array.isArray(emails) || emails.length === 0) {
+      if (row.editalId) {
+        var inscricoes = sheetToObjects(SpreadsheetApp.openById(SHEET_ID).getSheetByName('inscricoes')) || [];
+        var todos = [];
+        inscricoes
+          .filter(function(insc) { return insc.editalId === row.editalId; })
+          .forEach(function(insc) {
+            if (insc.alunoEmail) todos.push(insc.alunoEmail);
+            if (insc.coordEmail) todos.push(insc.coordEmail);
+          });
+        emails = todos.filter(function(em, idx2, arr) {
+          return em && em.indexOf('@') > 0 && arr.indexOf(em) === idx2;
+        });
+      }
+    }
+
+    var enviados = 0;
+    try {
+      emails.slice(0, 100).forEach(function(email) {
+        try {
+          MailApp.sendEmail({
+            to:      email,
+            subject: row.assunto.substring(0, 255),
+            body:    row.mensagem.substring(0, 2000) +
+                     '\n\n---\nSOA — IFRS Campus Rio Grande\nhttps://thgfonseca.github.io/SOA-IFRS/'
+          });
+          enviados++;
+        } catch(ex) { Logger.log('Erro ao enviar para ' + email + ': ' + ex.message); }
+      });
+      if (statusCol >= 0)    sheet.getRange(i + 1, statusCol + 1).setValue('enviado');
+      if (enviadoEmCol >= 0) sheet.getRange(i + 1, enviadoEmCol + 1).setValue(ts());
+      Logger.log('Notificação ' + row.id + ' enviada para ' + enviados + ' destinatário(s).');
+    } catch(ex) {
+      if (statusCol >= 0) sheet.getRange(i + 1, statusCol + 1).setValue('erro');
+      if (erroCol >= 0)   sheet.getRange(i + 1, erroCol + 1).setValue(ex.message.substring(0, 255));
+      Logger.log('Erro na notificação ' + row.id + ': ' + ex.message);
+    }
+  }
+}
+
+// Garante que o trigger de 30 min existe; cria se não existir
+function _garantirTriggerAgendamentos() {
+  try {
+    var triggers = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'verificarNotificacoesAgendadas') return;
+    }
+    ScriptApp.newTrigger('verificarNotificacoesAgendadas')
+      .timeBased()
+      .everyMinutes(30)
+      .create();
+    Logger.log('Trigger verificarNotificacoesAgendadas criado.');
+  } catch(ex) {
+    Logger.log('Não foi possível criar trigger: ' + ex.message);
+  }
+}
+
 // ── PROJETOS ───────────────────────────────────────
 function _salvarProjeto(b, u) {
   if (u.perfil !== 'admin') return errOut('Sem permissão');
@@ -547,6 +668,10 @@ function setupPlanilha() {
   aba('inscricoes',  ['id','alunoEmail','alunoNome','editalId','editalNome','projetoId','projetoNome','modalidade','status','coordEmail','motivacao','lattes','criadoEm','avaliadoEm','observacao'], '#f4b61d');
   aba('assiduidade', ['id','inscricaoId','alunoNome','projetoNome','coordEmail','mes','presenca','observacao','registradoEm'], '#9cbb31');
   aba('logs',        ['timestamp','email','perfil','acao','modulo','detalhe'], '#592b9b');
+  aba('notificacoes_agendadas', [
+    'id','editalId','assunto','mensagem','destinatarios',
+    'agendadoPara','agendadoPor','status','criadoEm','enviadoEm','erro'
+  ], '#4b5563');
   var p = ss.getSheetByName('Página1') || ss.getSheetByName('Sheet1');
   if (p && ss.getSheets().length > 1) ss.deleteSheet(p);
   Logger.log('✓ Pronto!');

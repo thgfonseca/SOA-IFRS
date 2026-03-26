@@ -188,11 +188,33 @@ const AdminEditais = {
               <div class="mfl"><label>Mensagem</label>
                 <textarea id="nmsg-${id}" rows="3" style="width:100%;padding:8px 10px;border:1.5px solid var(--g3);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);resize:vertical;box-sizing:border-box"></textarea></div>
             </div>
+            <!-- Agendamento -->
+            <div style="margin-top:10px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
+              <div style="font-size:11px;font-weight:600;color:var(--g5);margin-bottom:6px">⏰ Quando enviar?</div>
+              <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                  <input type="radio" name="notif-modo-${id}" value="agora" checked
+                    onchange="document.getElementById('nsched-wrap-${id}').style.display='none'">
+                  Enviar agora
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                  <input type="radio" name="notif-modo-${id}" value="agendar"
+                    onchange="document.getElementById('nsched-wrap-${id}').style.display='flex'">
+                  Agendar para:
+                </label>
+                <div id="nsched-wrap-${id}" style="display:none;gap:6px;align-items:center">
+                  <input type="date" id="nsched-data-${id}"
+                    style="height:30px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+                  <input type="time" id="nsched-hora-${id}" value="08:00"
+                    style="height:30px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+                </div>
+              </div>
+            </div>
             <div class="alarm-footer" style="margin-top:12px">
               <span class="send-flash" id="nflash-${id}">✓ Enviado!</span>
               <div style="display:flex;gap:8px">
                 <button class="btn bo" style="height:32px;font-size:12px" onclick="AdminEditais.toggleNotif('${id}')">Cancelar</button>
-                <button class="btn bp" style="height:32px;font-size:12px" onclick="AdminEditais.enviarNotif('${id}','${id}')">✉ Enviar</button>
+                <button class="btn bp" style="height:32px;font-size:12px" onclick="AdminEditais._despacharNotif('${id}','${id}')">✉ Enviar / Agendar</button>
               </div>
             </div>
           </div>
@@ -368,6 +390,33 @@ const AdminEditais = {
       const fl = document.getElementById('nflash-' + id);
       if (fl) { fl.classList.add('show'); setTimeout(() => fl.classList.remove('show'), 3000); }
       toast('✉ Notificação enviada!');
+    } catch(e) { toast('❌ ' + e.message); }
+  },
+
+  async _despacharNotif(id, editalId) {
+    const modoEl = document.querySelector(`input[name="notif-modo-${id}"]:checked`);
+    const modo   = modoEl ? modoEl.value : 'agora';
+    if (modo === 'agendar') {
+      await AdminEditais._agendarNotif(id, editalId);
+    } else {
+      await AdminEditais.enviarNotif(id, editalId);
+    }
+  },
+
+  async _agendarNotif(id, editalId) {
+    const assunto  = (document.getElementById('nassunto-' + id) || {}).value || '';
+    const msg      = (document.getElementById('nmsg-' + id)     || {}).value || '';
+    const dataRaw  = (document.getElementById('nsched-data-' + id) || {}).value || '';
+    const horaVal  = (document.getElementById('nsched-hora-' + id) || {}).value || '08:00';
+    if (!assunto || !msg) { toast('⚠ Preencha assunto e mensagem.'); return; }
+    if (!dataRaw)         { toast('⚠ Selecione a data para agendamento.'); return; }
+    const m = dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const dataBR       = m ? `${m[3]}/${m[2]}/${m[1]}` : dataRaw;
+    const agendadoPara = `${dataBR} ${horaVal}`;
+    try {
+      await API.agendarNotificacao({ editalId, assunto, mensagem: msg, agendadoPara });
+      toast(`⏰ Notificação agendada para ${agendadoPara}!`);
+      AdminEditais.toggleNotif(id);
     } catch(e) { toast('❌ ' + e.message); }
   },
 
@@ -1165,11 +1214,32 @@ const AdminCadEdital = {
           <span style="font-weight:600;color:var(--green)">⭐ Edital principal</span>
           <span style="font-size:11px;color:var(--g4)">(obrigatório para publicar)</span>
         </label>
-        <div id="pdf-notif-wrap-${idx}" style="display:${exibirNotif?'flex':'none'};align-items:center;gap:6px">
+        <div id="pdf-notif-wrap-${idx}" style="display:${exibirNotif?'flex':'none'};align-items:flex-start;gap:6px;flex-direction:column">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;user-select:none">
-            <input type="checkbox" id="pdf-notif-${idx}">
-            <span>Notificar participantes por e-mail ao salvar</span>
+            <input type="checkbox" id="pdf-notif-${idx}" onchange="AdminCadEdital._onDocNotifChange(${idx})">
+            <span>Notificar participantes por e-mail</span>
           </label>
+          <div id="pdf-notif-sched-${idx}" style="display:none;margin-left:20px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;width:calc(100% - 20px)">
+            <div style="font-size:11px;font-weight:600;color:var(--g5);margin-bottom:6px">⏰ Quando enviar?</div>
+            <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                <input type="radio" name="pdf-notif-modo-${idx}" value="agora" checked
+                  onchange="document.getElementById('pdf-notif-dt-${idx}').style.display='none'">
+                Ao salvar
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                <input type="radio" name="pdf-notif-modo-${idx}" value="agendar"
+                  onchange="document.getElementById('pdf-notif-dt-${idx}').style.display='flex'">
+                Agendar para:
+              </label>
+              <div id="pdf-notif-dt-${idx}" style="display:none;gap:6px;align-items:center">
+                <input type="date" id="pdf-notif-data-${idx}"
+                  style="height:28px;padding:0 7px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+                <input type="time" id="pdf-notif-hora-${idx}" value="08:00"
+                  style="height:28px;padding:0 7px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+              </div>
+            </div>
+          </div>
         </div>
       </div>`;
     list.appendChild(div);
@@ -1179,6 +1249,12 @@ const AdminCadEdital = {
     const sel   = document.getElementById(`pdf-tipo-${idx}`);
     const wrap  = document.getElementById(`pdf-notif-wrap-${idx}`);
     if (wrap) wrap.style.display = (sel?.value === 'Retificações' || sel?.value === 'Demais Publicações') ? 'flex' : 'none';
+  },
+
+  _onDocNotifChange(idx) {
+    const cb    = document.getElementById(`pdf-notif-${idx}`);
+    const sched = document.getElementById(`pdf-notif-sched-${idx}`);
+    if (sched) sched.style.display = cb?.checked ? '' : 'none';
   },
 
   remPdf(idx) { document.getElementById(`pdf-${idx}`)?.remove(); },
@@ -1242,12 +1318,20 @@ const AdminCadEdital = {
       const idx   = div.id.replace('pdf-','');
       const meta  = AdminCadEdital._docsMeta[idx];
       if (!meta || !meta.url) return; // ignora rows sem upload
-      const tipo  = (document.getElementById(`pdf-tipo-${idx}`)?.value  || '').trim();
-      const desc  = (document.getElementById(`pdf-desc-${idx}`)?.value  || '').trim();
-      const princ = document.getElementById(`pdf-principal-${idx}`)?.checked || false;
-      const notif = document.getElementById(`pdf-notif-${idx}`)?.checked || false;
+      const tipo      = (document.getElementById(`pdf-tipo-${idx}`)?.value  || '').trim();
+      const desc      = (document.getElementById(`pdf-desc-${idx}`)?.value  || '').trim();
+      const princ     = document.getElementById(`pdf-principal-${idx}`)?.checked || false;
+      const notif     = document.getElementById(`pdf-notif-${idx}`)?.checked || false;
+      const notifModo = document.querySelector(`input[name="pdf-notif-modo-${idx}"]:checked`)?.value || 'agora';
+      const notifData = (document.getElementById(`pdf-notif-data-${idx}`)?.value || '').trim();
+      const notifHora = (document.getElementById(`pdf-notif-hora-${idx}`)?.value || '08:00').trim();
+      let agendarEm = '';
+      if (notif && notifModo === 'agendar' && notifData) {
+        const mn = notifData.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        agendarEm = mn ? `${mn[3]}/${mn[2]}/${mn[1]} ${notifHora}` : '';
+      }
       if (princ) temPrincipal = true;
-      docs.push({ tipo, descricao: desc, principal: princ, notificar: notif, ...meta });
+      docs.push({ tipo, descricao: desc, principal: princ, notificar: notif, agendarEm, ...meta });
     });
     return { docs, temPrincipal };
   },
@@ -1371,11 +1455,33 @@ const AdminCadEdital = {
           <textarea id="crono-notif-msg-${idx}" rows="3"
             placeholder="Mensagem personalizada (deixe em branco para usar o padrão)..."
             style="width:100%;padding:8px 10px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx);box-sizing:border-box;resize:vertical"></textarea>
+          <!-- Agendamento da etapa -->
+          <div style="margin-top:8px;padding:8px 12px;background:#fff;border:1px solid #fde68a;border-radius:7px">
+            <div style="font-size:11px;font-weight:600;color:var(--g5);margin-bottom:6px">⏰ Quando enviar?</div>
+            <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                <input type="radio" name="crono-modo-${idx}" value="agora" checked
+                  onchange="document.getElementById('crono-sched-${idx}').style.display='none'">
+                Enviar agora
+              </label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none">
+                <input type="radio" name="crono-modo-${idx}" value="agendar"
+                  onchange="document.getElementById('crono-sched-${idx}').style.display='flex'">
+                Agendar para:
+              </label>
+              <div id="crono-sched-${idx}" style="display:none;gap:6px;align-items:center">
+                <input type="date" id="crono-sched-data-${idx}"
+                  style="height:30px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+                <input type="time" id="crono-sched-hora-${idx}" value="08:00"
+                  style="height:30px;padding:0 8px;border:1.5px solid var(--g3);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--tx)">
+              </div>
+            </div>
+          </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
             <button onclick="AdminCadEdital._toggleNotifCrono(${idx})"
               style="height:30px;padding:0 14px;border-radius:6px;border:1px solid var(--g3);background:transparent;cursor:pointer;font-size:12px">Cancelar</button>
-            <button onclick="AdminCadEdital._enviarNotifCrono(${idx})"
-              style="height:30px;padding:0 14px;border-radius:6px;border:none;background:#f59e0b;color:#1c1917;cursor:pointer;font-size:12px;font-weight:600">✉ Enviar notificação</button>
+            <button onclick="AdminCadEdital._despacharNotifCrono(${idx})"
+              style="height:30px;padding:0 14px;border-radius:6px;border:none;background:#f59e0b;color:#1c1917;cursor:pointer;font-size:12px;font-weight:600">✉ Enviar / Agendar</button>
           </div>
         </div>`;
       container.appendChild(div);
@@ -1428,6 +1534,49 @@ const AdminCadEdital = {
         destinatarios: extras.length > 0 ? extras : undefined
       });
       toast(`✉ Notificação enviada! (${res.enviados || 0} destinatário(s))`);
+      this._toggleNotifCrono(idx);
+    } catch(e) { toast('❌ ' + e.message); }
+  },
+
+  async _despacharNotifCrono(idx) {
+    const modoEl = document.querySelector(`input[name="crono-modo-${idx}"]:checked`);
+    const modo   = modoEl ? modoEl.value : 'agora';
+    if (modo === 'agendar') {
+      await AdminCadEdital._agendarNotifCrono(idx);
+    } else {
+      await AdminCadEdital._enviarNotifCrono(idx);
+    }
+  },
+
+  async _agendarNotifCrono(idx) {
+    const assunto  = (document.getElementById(`crono-notif-assunto-${idx}`)?.value || '').trim();
+    const msg      = (document.getElementById(`crono-notif-msg-${idx}`)?.value     || '').trim();
+    const destStr  = (document.getElementById(`crono-notif-dest-${idx}`)?.value    || '').trim();
+    const dataRaw  = (document.getElementById(`crono-sched-data-${idx}`)?.value    || '').trim();
+    const horaVal  = (document.getElementById(`crono-sched-hora-${idx}`)?.value    || '08:00').trim();
+
+    if (!assunto)  { toast('⚠ Preencha o assunto da notificação.'); return; }
+    if (!dataRaw)  { toast('⚠ Selecione a data para agendamento.'); return; }
+
+    const m = dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const dataBR       = m ? `${m[3]}/${m[2]}/${m[1]}` : dataRaw;
+    const agendadoPara = `${dataBR} ${horaVal}`;
+
+    const titulo  = val('f-titulo') || 'Edital';
+    const etapa   = this._cronoEtapas[idx]?.etapa || '';
+    const msgFinal = msg || `Prezado(a),\n\nInformamos que a etapa "${etapa}" está prevista no cronograma do edital:\n\n${titulo}\n\nAcesse o SOA para mais informações.\n\nAtenciosamente,\nSecretaria Acadêmica — IFRS Campus Rio Grande`;
+    const extras   = destStr ? destStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    try {
+      toast('⏳ Agendando notificação...');
+      await API.agendarNotificacao({
+        editalId:      this._editId || '',
+        assunto,
+        mensagem:      msgFinal,
+        agendadoPara,
+        destinatarios: extras.length > 0 ? extras : undefined
+      });
+      toast(`⏰ Notificação agendada para ${agendadoPara}!`);
       this._toggleNotifCrono(idx);
     } catch(e) { toast('❌ ' + e.message); }
   },
@@ -1504,15 +1653,21 @@ const AdminCadEdital = {
     try {
       const res = await API.salvarEdital(dados);
 
-      // Enviar notificações para docs que precisam
+      // Enviar / agendar notificações para docs que precisam
       const docsNotif = docs.filter(d => d.notificar);
       for (const doc of docsNotif) {
         try {
-          await API.enviarNotificacao({
-            editalId:  res.id || this._editId,
-            assunto:   `SOA/IFRS — ${doc.tipo} publicado(a): ${titulo}`,
-            mensagem:  `Prezado(a),\n\nUm(a) novo(a) ${doc.tipo} foi publicado(a) para o edital:\n\n${titulo}\n\nAcesse o SOA para visualizar.\n\nAtenciosamente,\nSecretaria Acadêmica — IFRS Campus Rio Grande`
-          });
+          const edId    = res.id || this._editId;
+          const payload = {
+            editalId: edId,
+            assunto:  `SOA/IFRS — ${doc.tipo} publicado(a): ${titulo}`,
+            mensagem: `Prezado(a),\n\nUm(a) novo(a) ${doc.tipo} foi publicado(a) para o edital:\n\n${titulo}\n\nAcesse o SOA para visualizar.\n\nAtenciosamente,\nSecretaria Acadêmica — IFRS Campus Rio Grande`
+          };
+          if (doc.agendarEm) {
+            await API.agendarNotificacao({ ...payload, agendadoPara: doc.agendarEm });
+          } else {
+            await API.enviarNotificacao(payload);
+          }
         } catch(_) {}
       }
 
