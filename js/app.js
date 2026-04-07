@@ -129,6 +129,15 @@ function bindNav(navId, fn) {
     b.addEventListener('click', () => fn(b.dataset.page));
   });
 }
+
+// Fecha o menu de impersonação ao clicar fora
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('simul-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const m = document.getElementById('simul-menu');
+    if (m) m.style.display = 'none';
+  }
+});
 function setLoadMsg(msg) {
   const e = document.getElementById('load-sub');
   if (e) e.textContent = msg;
@@ -141,6 +150,7 @@ function hideLoading() {
 
 const AdminRouter = {
   ir(page) {
+    AdminSimul.sair(false);  // sai do modo visualização sem redirecionar
     activateNav('admin-topnav', page); Sidebar.activate(page);
     const app = document.getElementById('app');
     const p = {
@@ -153,6 +163,87 @@ const AdminRouter = {
       logs:          () => AdminLogs.render(app)
     };
     if (p[page]) p[page]();
+  }
+};
+
+// ── Modo visualização (impersonação) ──────────────
+const AdminSimul = {
+  _ativo: false,
+  _perfil: null,
+
+  iniciar(perfil) {
+    this._ativo  = true;
+    this._perfil = perfil;
+    document.getElementById('simul-menu')?.classList.remove('open');
+    this._render(perfil, perfil === 'coordenador' ? 'home' : 'editais');
+  },
+
+  _render(perfil, pagina) {
+    this._ativo  = true;
+    this._perfil = perfil;
+    const app = document.getElementById('app');
+
+    const navItems = perfil === 'coordenador'
+      ? [['home','🏠 Início'],['projetos','📁 Projetos'],['inscricoes','✍ Inscrições'],['assiduidade','✓ Assiduidade']]
+      : [['editais','📋 Editais'],['inscricoes','✍ Inscrições'],['assiduidade','✓ Assiduidade']];
+
+    const navHtml = navItems.map(([p, l]) =>
+      `<button onclick="AdminSimul._render('${perfil}','${p}')"
+        style="padding:5px 14px;border-radius:20px;border:1.5px solid ${p === pagina ? '#fff' : 'rgba(255,255,255,.4)'};
+               background:${p === pagina ? 'rgba(255,255,255,.25)' : 'transparent'};
+               color:#fff;cursor:pointer;font-size:12px;font-weight:${p === pagina ? '700' : '500'}">${l}</button>`
+    ).join('');
+
+    const perfilLabel = perfil === 'coordenador' ? '🟡 Coordenador' : '🔵 Aluno';
+
+    app.innerHTML = `
+      <div style="background:#7c3aed;color:#fff;padding:10px 16px;border-radius:10px;margin-bottom:16px;
+                  display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-weight:700;font-size:13px">👁 Visualizando como:</span>
+        <span style="font-size:13px">${perfilLabel}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${navHtml}</div>
+        <div style="flex:1"></div>
+        <button onclick="AdminSimul.sair(true)"
+          style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.4);
+                 color:#fff;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">
+          ✕ Sair do modo visualização
+        </button>
+      </div>
+      <div id="simul-content"></div>`;
+
+    const content = document.getElementById('simul-content');
+    if (perfil === 'coordenador') {
+      const pages = {
+        home:        () => CoordHome.render(content),
+        projetos:    () => CoordHome.renderProjetos(content),
+        inscricoes:  () => CoordInscricoes.render(content),
+        assiduidade: () => CoordAssiduidade.render(content)
+      };
+      if (pages[pagina]) pages[pagina]();
+    } else {
+      const pages = {
+        editais:     () => AlunoEditais.render(content),
+        inscricoes:  () => AlunoInscricoes.render(content),
+        assiduidade: () => AlunoAssiduidade.render(content)
+      };
+      if (pages[pagina]) pages[pagina]();
+    }
+  },
+
+  sair(redirecionar = true) {
+    if (!this._ativo) return;
+    this._ativo  = false;
+    this._perfil = null;
+    if (redirecionar) {
+      activateNav('admin-topnav', 'editais'); Sidebar.activate('editais');
+      AdminEditais.render(document.getElementById('app'));
+    }
+  },
+
+  _toggleMenu() {
+    const m = document.getElementById('simul-menu');
+    if (!m) return;
+    m.style.display = m.style.display === 'none' || m.style.display === '' ? 'block' : 'none';
   }
 };
 const CoordRouter = {

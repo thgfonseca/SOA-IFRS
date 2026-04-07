@@ -83,7 +83,6 @@ const AdminEditais = {
           <th class="sortable" onclick="AdminEditais.sortCol(2,this)">Número/Ano <span class="sort-ico">↕</span></th>
           <th class="sortable" onclick="AdminEditais.sortCol(3,this)">Título <span class="sort-ico">↕</span></th>
           <th class="sortable" onclick="AdminEditais.sortCol(4,this)">Tipo <span class="sort-ico">↕</span></th>
-          <th class="sortable" onclick="AdminEditais.sortCol(5,this)">Vigência <span class="sort-ico">↕</span></th>
           <th>Ações</th>
           <th style="white-space:nowrap">Última atualização</th>
         </tr></thead>
@@ -130,7 +129,8 @@ const AdminEditais = {
       const status = AdminEditais._sanitize(e.status);
       const vigIni = AdminEditais._fmtDataOnly(e.vigIni);
       const vigFim = AdminEditais._fmtDataOnly(e.vigFim);
-      const upd    = AdminEditais._fmtData(e.updated_at || e.criadoEm);
+      const updRaw = (e.updated_at && !String(e.updated_at).startsWith('[') && !String(e.updated_at).startsWith('{')) ? e.updated_at : '';
+      const upd    = AdminEditais._fmtData(updRaw || e.criadoEm);
 
       return `
       <tr id="edital-row-${id}" data-seg="${seg}" data-status="${status}">
@@ -139,7 +139,6 @@ const AdminEditais = {
         <td><div class="tm">${numero}</div></td>
         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${titulo}">${titulo}</td>
         <td style="font-size:12px">${tipo}</td>
-        <td style="font-size:12px;white-space:nowrap">${vigIni} – ${vigFim}</td>
         <td><div class="acts">
           <button class="ab" onclick="AdminEditais.toggleNotif('${id}')" title="Enviar notificação" style="font-size:14px;padding:0 8px">🔔</button>
           <button class="ab" onclick="AdminEditais.toggleVer('${id}')">Ver</button>
@@ -151,11 +150,11 @@ const AdminEditais = {
       </tr>
 
       <tr id="ver-${id}" style="display:none">
-        <td colspan="8" style="padding:0">${AdminEditais._renderVerPanel(e)}</td>
+        <td colspan="7" style="padding:0">${AdminEditais._renderVerPanel(e)}</td>
       </tr>
 
       <tr id="notif-${id}" style="display:none">
-        <td colspan="8" style="padding:0">
+        <td colspan="7" style="padding:0">
           <div class="alarm-panel open">
             <div style="font-size:13px;font-weight:600;color:#854d0e;margin-bottom:14px">
               🔔 Notificação — ${titulo}
@@ -744,7 +743,7 @@ const AdminCadEdital = {
           <input class="inp" id="f-titulo" value="${esc(dados.titulo||'')}" placeholder="Ex: Edital 001/2025 — Bolsas de Pesquisa AIPCTI">
         </div>
         <div class="fl s2">
-          <label>Descrição / Ementa</label>
+          <label>Descrição</label>
           <textarea class="inp" id="f-descricao" rows="3" placeholder="Descrição resumida do edital...">${esc(dados.descricao||'')}</textarea>
         </div>
       </div>

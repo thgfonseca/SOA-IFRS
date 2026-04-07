@@ -33,7 +33,31 @@
         <button class="hni"     data-page="logs">Auditoria</button>
       </nav>
     </div>
-    <div class="hr">
+    <div class="hr" style="gap:12px">
+      <!-- Visualizar como -->
+      <div style="position:relative" id="simul-wrap">
+        <button onclick="AdminSimul._toggleMenu()"
+          style="display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;
+                 border:1.5px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);
+                 color:#c4b5fd;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:500">
+          👁 Visualizar como
+        </button>
+        <div id="simul-menu"
+          style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:170px;
+                 background:#fff;border:1.5px solid var(--g3);border-radius:10px;
+                 box-shadow:0 6px 24px rgba(0,0,0,.12);z-index:200;padding:6px;overflow:hidden">
+          <div onclick="AdminSimul.iniciar('coordenador')"
+            style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:7px;font-size:13px;color:var(--tx)"
+            onmouseover="this.style.background='var(--g1)'" onmouseout="this.style.background=''">
+            🟡 <span>Coordenador</span>
+          </div>
+          <div onclick="AdminSimul.iniciar('aluno')"
+            style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:7px;font-size:13px;color:var(--tx)"
+            onmouseover="this.style.background='var(--g1)'" onmouseout="this.style.background=''">
+            🔵 <span>Aluno</span>
+          </div>
+        </div>
+      </div>
       <div class="huser">
         <div class="hav" id="admin-av">AD</div>
         <div><div class="hun" id="admin-nome">Admin</div><div class="hperf">Administrador</div></div>

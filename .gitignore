@@ -1,0 +1,7 @@
+# Backend Apps Script — gerenciado diretamente no Google Apps Script
+Code.gs
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
