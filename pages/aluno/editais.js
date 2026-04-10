@@ -119,7 +119,12 @@ const AlunoEditais = {
                 </div>
                 <div style="font-size:13px;color:var(--g5);line-height:1.6">${descricao}</div>
               </div>
-              <button class="btn bp" onclick="AlunoEditais.inscrever('${edId}', ${JSON.stringify(e.titulo)})">+ Inscrever-se</button>
+              <button class="btn bp"
+                data-eid="${edId}"
+                data-enome="${AlunoEditais._esc(e.titulo)}"
+                onclick="AlunoEditais.inscrever(this.dataset.eid, this.dataset.enome)">
+                📁 Ver projetos
+              </button>
             </div>
           </div>`;
       });
@@ -137,7 +142,15 @@ const AlunoEditais = {
       return;
     }
 
-    window._projetosInsc = projetos;
+    window._projetosInsc   = projetos;
+    window._inscEditalId   = editalId;
+    window._inscEditalNome = editalNome;
+
+    // Conecta o botão de confirmação sem inline onclick (evita problema com aspas)
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirmar-insc');
+      if (btn) btn.onclick = () => AlunoEditais.confirmar(window._inscEditalId, window._inscEditalNome);
+    }, 0);
 
     const optsProj = projetos.map(p =>
       `<option value="${AlunoEditais._esc(p.id)}" data-coord="${AlunoEditais._esc(p.coordEmail)}">${AlunoEditais._esc(p.titulo)}</option>`
@@ -162,7 +175,7 @@ const AlunoEditais = {
           <input class="inp" id="ins-lattes" type="url" placeholder="https://lattes.cnpq.br/..."></div>
       </div>`,
       `<button class="btn bo" onclick="Modal.close()">Cancelar</button>
-       <button class="btn bp" onclick="AlunoEditais.confirmar(${JSON.stringify(editalId)}, ${JSON.stringify(editalNome)})">✓ Enviar inscrição</button>`
+       <button class="btn bp" id="btn-confirmar-insc">✓ Candidatar-se</button>`
     );
   },
 
