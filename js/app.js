@@ -73,6 +73,7 @@ async function carregar(token) {
     }
 
     SOA.perfil      = data.perfil;
+    SOA.master      = data.master || false;
     SOA.token       = data.token || token;
     SOA.editais     = data.editais     || [];
     SOA.projetos    = data.projetos    || [];
@@ -81,6 +82,7 @@ async function carregar(token) {
     SOA.logs        = data.logs        || [];
 
     iniciarInterface();
+    if (SOA.master) _renderMasterBar(SOA.perfil.perfil);
     hideLoading();
   } catch(e) {
     sessionStorage.removeItem('soa_token');
@@ -185,3 +187,68 @@ const AlunoRouter = {
     if (p[page]) p[page]();
   }
 };
+
+// ── Barra de troca de perfil (somente usuário master) ──
+function _renderMasterBar(perfilAtual) {
+  const old = document.getElementById('master-bar');
+  if (old) old.remove();
+
+  const bar = document.createElement('div');
+  bar.id = 'master-bar';
+  bar.style.cssText = [
+    'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999',
+    'background:#0f172a;border-radius:40px;padding:6px 8px',
+    'display:flex;align-items:center;gap:4px',
+    'box-shadow:0 4px 24px rgba(0,0,0,.45)',
+    'font-family:Inter,sans-serif'
+  ].join(';');
+
+  const perfis = [
+    { id:'admin',       label:'🔧 Admin',       cor:'#6366f1' },
+    { id:'coordenador', label:'👨‍🏫 Coordenador', cor:'#10b981' },
+    { id:'aluno',       label:'👨‍🎓 Aluno',        cor:'#3b82f6' }
+  ];
+
+  bar.innerHTML =
+    `<span style="color:#64748b;font-size:11px;padding:0 8px;white-space:nowrap">Perfil:</span>` +
+    perfis.map(({ id, label, cor }) => {
+      const ativo = id === perfilAtual;
+      return `<button onclick="_switchPerfil('${id}')"
+        style="padding:6px 16px;border-radius:30px;border:none;cursor:pointer;
+               font-size:12px;font-weight:600;transition:all .15s;
+               background:${ativo ? cor : 'transparent'};
+               color:${ativo ? '#fff' : '#94a3b8'}"
+        onmouseover="if('${id}'!=='${perfilAtual}')this.style.color='#e2e8f0'"
+        onmouseout="if('${id}'!=='${perfilAtual}')this.style.color='#94a3b8'">
+        ${label}
+      </button>`;
+    }).join('');
+
+  document.body.appendChild(bar);
+}
+
+function _switchPerfil(perfil) {
+  const { nome } = SOA.perfil;
+  const av = initials(nome);
+
+  if (perfil === 'admin') {
+    document.getElementById('admin-av').textContent   = av;
+    document.getElementById('admin-nome').textContent = nome;
+    showShell('admin');
+    AdminRouter.ir('editais');
+
+  } else if (perfil === 'coordenador') {
+    document.getElementById('coord-av').textContent   = av;
+    document.getElementById('coord-nome').textContent = nome;
+    showShell('coordenador');
+    CoordRouter.ir('home');
+
+  } else {
+    document.getElementById('aluno-av').textContent   = av;
+    document.getElementById('aluno-nome').textContent = nome;
+    showShell('aluno');
+    AlunoRouter.ir('editais');
+  }
+
+  _renderMasterBar(perfil);
+}
