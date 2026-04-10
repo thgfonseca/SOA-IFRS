@@ -296,25 +296,6 @@ const AdminProjetos = {
       </div>
     </div>
 
-    <!-- ─── 7. Resumo e objetivos ────────────────── -->
-    <div class="card">
-      <div class="ch"><h3>7. Resumo e objetivos</h3></div>
-      <div style="padding:0 24px 24px">
-        <div class="fg">
-          <div class="fl s2">
-            <label>Resumo</label>
-            <textarea class="inp" id="p-resumo" rows="4"
-              placeholder="Descreva o contexto, justificativa e objetivos do projeto...">${esc(dados.resumo || '')}</textarea>
-          </div>
-          <div class="fl s2">
-            <label>Metodologia</label>
-            <textarea class="inp" id="p-metodologia" rows="4"
-              placeholder="Descreva a metodologia e etapas previstas...">${esc(dados.metodologia || '')}</textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ─── Footer ──────────────────────────────── -->
     <div class="fa" style="display:flex;gap:10px;align-items:center">
       <button class="btn bo" onclick="AdminRouter.ir('projetos')">Cancelar</button>
@@ -602,9 +583,7 @@ const AdminProjetos = {
       itensCapital:  JSON.stringify(itensCapital),
       bolsas:        JSON.stringify(bolsas),
       documentoUrl:  this._docsMeta.url  || '',
-      documentoNome: this._docsMeta.nome || '',
-      resumo:        val('p-resumo'),
-      metodologia:   val('p-metodologia')
+      documentoNome: this._docsMeta.nome || ''
     };
   },
 
