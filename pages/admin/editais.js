@@ -129,8 +129,11 @@ const AdminEditais = {
       const status = AdminEditais._sanitize(e.status);
       const vigIni = AdminEditais._fmtDataOnly(e.vigIni);
       const vigFim = AdminEditais._fmtDataOnly(e.vigFim);
-      const updRaw = (e.updated_at && !String(e.updated_at).startsWith('[') && !String(e.updated_at).startsWith('{')) ? e.updated_at : '';
-      const upd    = AdminEditais._fmtData(updRaw || e.criadoEm);
+      const _isDate = v => v && /^\d{2}\/\d{2}\/\d{4}/.test(String(v).trim());
+      const upd = AdminEditais._fmtData(
+        _isDate(e.updated_at) ? e.updated_at :
+        _isDate(e.criadoEm)   ? e.criadoEm   : '—'
+      );
 
       return `
       <tr id="edital-row-${id}" data-seg="${seg}" data-status="${status}">
