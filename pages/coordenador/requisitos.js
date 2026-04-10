@@ -159,7 +159,20 @@ const CoordRequisitos = {
         <h3 style="margin:0">8. Critérios de Seleção</h3>
         <span style="font-size:12px;font-weight:400;color:var(--g5)">A soma dos pesos dos critérios selecionados deve totalizar 10</span>
       </div>
-      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px">
+      <!-- Templates de preenchimento rápido -->
+      <div style="padding:12px 24px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--bd)">
+        <span style="font-size:12px;color:var(--g5);font-weight:500;white-space:nowrap">⚡ Template:</span>
+        <button class="btn bo" style="font-size:11px;padding:4px 10px;height:auto"
+          onclick="CoordRequisitos._aplicarTemplate('lattes')">Apenas Lattes (10)</button>
+        <button class="btn bo" style="font-size:11px;padding:4px 10px;height:auto"
+          onclick="CoordRequisitos._aplicarTemplate('entrev_lattes')">Entrevista + Lattes (5+5)</button>
+        <button class="btn bo" style="font-size:11px;padding:4px 10px;height:auto"
+          onclick="CoordRequisitos._aplicarTemplate('entrev_carta')">Entrevista + Carta (6+4)</button>
+        <button class="btn bo" style="font-size:11px;padding:4px 10px;height:auto"
+          onclick="CoordRequisitos._aplicarTemplate('entrev_online')">Entrevista on-line + Lattes (5+5)</button>
+      </div>
+
+      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;margin-top:14px">
 
         ${this._cardRadio('entrevista','Entrevista',['Não se aplica','Presencial','On-line'],crit)}
         ${this._cardCheck('analise','Análise de documentos',['Currículo Lattes','Currículo Vitae','Portfólio','Carta de intenções','Produção de texto','Produção de vídeo','Não se aplica'],crit)}
@@ -278,6 +291,60 @@ const CoordRequisitos = {
 
   // ── Interações ───────────────────────────────────
 
+  _aplicarTemplate(id) {
+    const TEMPLATES = {
+      lattes:        { analise: ['Currículo Lattes'], peso_analise: 10 },
+      entrev_lattes: { entrevista: 'Presencial', peso_entrevista: 5, analise: ['Currículo Lattes'], peso_analise: 5 },
+      entrev_carta:  { entrevista: 'Presencial', peso_entrevista: 6, analise: ['Carta de intenções'], peso_analise: 4 },
+      entrev_online: { entrevista: 'On-line',    peso_entrevista: 5, analise: ['Currículo Lattes'], peso_analise: 5 }
+    };
+    const t = TEMPLATES[id];
+    if (!t) return;
+
+    // Reset entrevista → "Não se aplica"
+    const entNA = document.querySelector('input[name="crit-entrevista"][value="Não se aplica"]');
+    if (entNA) entNA.checked = true;
+
+    // Reset analise checkboxes → só "Não se aplica"
+    document.querySelectorAll('input[name="crit-analise"]').forEach(cb => cb.checked = false);
+    const anaNA = document.querySelector('input[name="crit-analise"][value="Não se aplica"]');
+    if (anaNA) anaNA.checked = true;
+
+    // Reset radios tipo "outro" → na
+    ['participacao','cursos_crit','habilidades','horario'].forEach(k => {
+      const r = document.querySelector(`input[name="crit-${k}"][value="na"]`);
+      if (r) r.checked = true;
+      const txt = document.getElementById(`crit-${k}-txt`);
+      if (txt) txt.style.display = 'none';
+    });
+
+    // Reset todos os pesos
+    document.querySelectorAll('.cr-peso').forEach(s => s.value = '');
+
+    // Aplica template
+    if (t.entrevista) {
+      const r = document.querySelector(`input[name="crit-entrevista"][value="${t.entrevista}"]`);
+      if (r) r.checked = true;
+    }
+    if (t.peso_entrevista) {
+      const s = document.getElementById('crit-peso-entrevista');
+      if (s) s.value = t.peso_entrevista;
+    }
+    if (t.analise) {
+      // Desmarca "Não se aplica" dos checkboxes de análise
+      if (anaNA) anaNA.checked = false;
+      t.analise.forEach(v => {
+        const cb = document.querySelector(`input[name="crit-analise"][value="${v}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (t.peso_analise) {
+      const s = document.getElementById('crit-peso-analise');
+      if (s) s.value = t.peso_analise;
+    }
+    this._recalcSoma();
+  },
+
   _toggleCursoNA(cb) {
     const wrap = document.getElementById('req-cursos-wrap');
     if (!wrap) return;
@@ -380,6 +447,16 @@ const CoordRequisitos = {
   // ── Salvar ───────────────────────────────────────
 
   async salvar() {
+    // Valida soma dos pesos (só bloqueia se algum peso foi definido mas soma ≠ 10)
+    let soma = 0;
+    document.querySelectorAll('.cr-peso').forEach(s => {
+      const v = parseInt(s.value); if (!isNaN(v)) soma += v;
+    });
+    if (soma > 0 && soma !== 10) {
+      toast(`⚠ A soma dos pesos deve ser 10. Atual: ${soma}`);
+      document.getElementById('crit-soma')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const requisitos = this._coletarRequisitos();
     const criterios  = this._coletarCriterios();
     toast('⏳ Salvando...');

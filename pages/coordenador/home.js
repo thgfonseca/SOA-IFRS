@@ -38,11 +38,18 @@ const CoordHome = {
     } else {
       projetos.forEach(p => {
         const temReq = p.requisitos || p.criterios;
+        const reqBadge = temReq
+          ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+                          color:#16a34a;background:#dcfce7;border-radius:20px;padding:2px 10px">
+               ✓ Requisitos preenchidos</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+                          color:#d97706;background:#fef3c7;border-radius:20px;padding:2px 10px">
+               ⚠ Requisitos pendentes</span>`;
         html += `<div class="card" style="padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-                ${statusBadge(p.status)} ${segBadge(p.segmento)}
+                ${statusBadge(p.status)} ${segBadge(p.segmento)} ${reqBadge}
               </div>
               <div style="font-size:15px;font-weight:600;margin-bottom:4px">${p.titulo}</div>
               <div style="font-size:12px;color:var(--g5)">
