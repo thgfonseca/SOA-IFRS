@@ -2,8 +2,10 @@
 
 const CoordHome = {
   render(body) {
-    const { projetos, inscricoes } = SOA;
-    const pendentes = inscricoes.filter(i => i.status === 'Pendente').length;
+    // Deduplica projetos por id
+    const projetos   = [...new Map(SOA.projetos.map(p => [p.id, p])).values()];
+    const inscricoes = SOA.inscricoes;
+    const pendentes  = inscricoes.filter(i => i.status === 'Pendente').length;
 
     body.innerHTML = `
     <div class="ph"><div><h1>Painel do Coordenador</h1><p>Bem-vindo(a), ${SOA.perfil.nome}</p></div></div>
@@ -27,19 +29,30 @@ const CoordHome = {
   },
 
   renderProjetos(body) {
-    const { projetos } = SOA;
+    // Deduplica projetos por id
+    const projetos = [...new Map(SOA.projetos.map(p => [p.id, p])).values()];
     let html = `<div class="ph"><div><h1>Meus Projetos</h1></div></div>`;
+
     if (projetos.length === 0) {
       html += `<div class="card">${emptyState('📁', 'Nenhum projeto vinculado a você ainda.')}</div>`;
     } else {
       projetos.forEach(p => {
+        const temReq = p.requisitos || p.criterios;
         html += `<div class="card" style="padding:20px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            ${statusBadge(p.status)} ${segBadge(p.segmento)}
-            <strong style="font-size:15px">${p.titulo}</strong>
-          </div>
-          <div style="font-size:12px;color:var(--g5)">
-            Edital: ${p.editalId} · Recurso: ${p.recurso} · Tipo: ${p.tipoProjeto}
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                ${statusBadge(p.status)} ${segBadge(p.segmento)}
+              </div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:4px">${p.titulo}</div>
+              <div style="font-size:12px;color:var(--g5)">
+                Edital: ${p.editalId || '—'} · Recurso: ${p.recurso || '—'} · Tipo: ${p.tipoProjeto || '—'}
+              </div>
+            </div>
+            <button class="btn ${temReq ? 'bo' : 'bp'}" style="font-size:12px;white-space:nowrap"
+              onclick="CoordRouter.ir('requisitos','${p.id}')">
+              ${temReq ? '✏ Editar requisitos' : '📋 Preencher requisitos'}
+            </button>
           </div>
         </div>`;
       });

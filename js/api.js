@@ -17,7 +17,8 @@ const API = {
   async avaliarInscricao(id, resultado, obs='') {
     return API._post({ action:'avaliarInscricao', id, resultado, observacao:obs });
   },
-  async salvarAssiduidade(d)  { return API._post({ action:'salvarAssiduidade', ...d }); },
+  async salvarAssiduidade(d)   { return API._post({ action:'salvarAssiduidade',  ...d }); },
+  async salvarRequisitos(d)    { return API._post({ action:'salvarRequisitos',   ...d }); },
 
   // Upload de arquivo para o Google Drive via Apps Script
   async uploadDocumento(dados) { return API._post({ action:'uploadDocumento', ...dados }); },

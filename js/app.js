@@ -156,14 +156,19 @@ const AdminRouter = {
   }
 };
 const CoordRouter = {
-  ir(page) {
+  ir(page, extra) {
     activateNav('coord-topnav', page);
     const b = document.getElementById('coord-body');
     const p = {
       home:        () => CoordHome.render(b),
       projetos:    () => CoordHome.renderProjetos(b),
       inscricoes:  () => CoordInscricoes.render(b),
-      assiduidade: () => CoordAssiduidade.render(b)
+      assiduidade: () => CoordAssiduidade.render(b),
+      requisitos:  () => {
+        const proj = SOA.projetos.find(x => x.id === extra);
+        if (proj) CoordRequisitos.form(b, proj);
+        else CoordHome.renderProjetos(b);
+      }
     };
     if (p[page]) p[page]();
   }
