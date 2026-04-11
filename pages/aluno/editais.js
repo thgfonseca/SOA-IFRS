@@ -121,8 +121,7 @@ const AlunoEditais = {
               </div>
               <button class="btn bp"
                 data-eid="${edId}"
-                data-enome="${AlunoEditais._esc(e.titulo)}"
-                onclick="AlunoEditais.inscrever(this.dataset.eid, this.dataset.enome)">
+                onclick="AlunoRouter.ir('projetos', this.dataset.eid)">
                 📁 Ver projetos
               </button>
             </div>

@@ -176,13 +176,14 @@ const CoordRouter = {
   }
 };
 const AlunoRouter = {
-  ir(page) {
+  ir(page, extra) {
     activateNav('aluno-topnav', page);
     const b = document.getElementById('aluno-body');
     const p = {
       editais:     () => AlunoEditais.render(b),
       inscricoes:  () => AlunoInscricoes.render(b),
-      assiduidade: () => AlunoAssiduidade.render(b)
+      assiduidade: () => AlunoAssiduidade.render(b),
+      projetos:    () => AlunoProjetosEdital.render(b, extra)
     };
     if (p[page]) p[page]();
   }

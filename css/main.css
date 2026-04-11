@@ -308,6 +308,15 @@ tbody tr:hover td { background: #fafbfc; }
 .bn { background: #f1f5f9; color: #475569; }
 .bb { background: #e0f2fe; color: #0e4d6b; }
 
+/* Detalhes de projeto (aluno) */
+.det-titulo {
+  font-size: 11px; font-weight: 700; color: #6b7280;
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
+}
+.det-item {
+  font-size: 13px; color: #6b7280; line-height: 1.6; margin-bottom: 3px;
+}
+
 /* Formulários */
 .inp {
   height: 40px;
