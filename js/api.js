@@ -14,11 +14,14 @@ const API = {
   async salvarProjeto(dados)  { return API._post({ action:'salvarProjeto',  ...dados }); },
   async excluirProjeto(id)    { return API._post({ action:'excluirProjeto',  id }); },
   async salvarInscricao(d)    { return API._post({ action:'salvarInscricao', ...d }); },
-  async avaliarInscricao(id, resultado, obs='') {
-    return API._post({ action:'avaliarInscricao', id, resultado, observacao:obs });
+  async avaliarInscricao(id, resultado, obs='', notaFinal='', notasCriterios='') {
+    return API._post({ action:'avaliarInscricao', id, resultado, observacao:obs, notaFinal, notasCriterios });
   },
   async salvarAssiduidade(d)   { return API._post({ action:'salvarAssiduidade',  ...d }); },
   async salvarRequisitos(d)    { return API._post({ action:'salvarRequisitos',   ...d }); },
+  async homologarInscricao(d)  { return API._post({ action:'homologarInscricao', ...d }); },
+  async recorrerInscricao(d)   { return API._post({ action:'recorrerInscricao',  ...d }); },
+  async decidirRecurso(d)      { return API._post({ action:'decidirRecurso',     ...d }); },
 
   // Upload de arquivo para o Google Drive via Apps Script
   async uploadDocumento(dados) { return API._post({ action:'uploadDocumento', ...dados }); },

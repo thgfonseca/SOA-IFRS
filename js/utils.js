@@ -35,7 +35,10 @@ const STATUS_CLASS = {
   Pendente:  'ba', Rascunho: 'bn',
   Reprovado: 'br', Suspenso: 'br', Falta: 'br',
   Encerrado: 'bn', Concluído: 'bb', admin: 'bv',
-  coordenador: 'bb', aluno: 'bn'
+  coordenador: 'bb', aluno: 'bn',
+  Homologada: 'bv', 'Não homologada': 'br',
+  'Homologada por recurso': 'bv', 'Recurso indeferido': 'br',
+  'Aprovado suplente': 'bb'
 };
 
 function statusBadge(s) {
